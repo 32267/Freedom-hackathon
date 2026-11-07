@@ -121,9 +121,10 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
         "response_format": {"type": "json_schema", "json_schema": {"name": "cqa_evaluation", "schema": schema, "strict": True}},
         "temperature": 0,
         "max_tokens": max_tokens,
-        "repetition_penalty": repetition_penalty,
-        "repetition_context_size": repetition_context_size,
     }
+    if repetition_penalty > 1.0:
+        body["repetition_penalty"] = repetition_penalty
+        body["repetition_context_size"] = repetition_context_size
     debug_dir = os.getenv("LOCAL_LLM_DEBUG_DIR", "").strip()
     debug_context = _debug_context(user, schema) if debug_dir else None
     try:
@@ -152,6 +153,15 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
     usage = out.get("usage") or {} if isinstance(out, dict) else {}
     finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
 
+    if debug_dir:
+        _capture_debug(
+            debug_dir=debug_dir, context=debug_context, request_body=body,
+            response_body={"content": content, "finish_reason": finish_reason, "usage": usage,
+                           "id": out.get("id") if isinstance(out, dict) else None,
+                           "model": out.get("model") if isinstance(out, dict) else None},
+            http_status=r.status_code,
+        )
+
     retry_count = 0
     first_usage = dict(usage)
     if _has_repetition_loop(content):
@@ -160,6 +170,7 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
         retry_count = 1
         retry_body = dict(body)
         retry_body["repetition_penalty"] = min(2.0, max(1.1, repetition_penalty) * 1.15)
+        retry_body["repetition_context_size"] = repetition_context_size
         try:
             retry_response = httpx.post(f"{base}/chat/completions", json=retry_body, headers=headers, timeout=timeout)
         except httpx.TimeoutException as e:
