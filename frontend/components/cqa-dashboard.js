@@ -6,6 +6,7 @@ class CqaDashboard extends HTMLElement {
     this.querySelector("#new-eval").addEventListener("click", () => { window.location.hash = "conversations"; });
     try { await this.renderData(); } catch (error) { this.querySelector("#dashboard-content").innerHTML = `<div class="cqa-empty">${error.message}</div>`; }
   }
+  escape(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   async renderData() {
     const dialogs = await api.getDialogs();
     const evaluated = dialogs.filter(d => d.total_score !== null);
@@ -29,7 +30,7 @@ class CqaDashboard extends HTMLElement {
         </section>
       </div>
       <section class="cqa-card cqa-panel" style="margin-top:16px"><div class="cqa-panel-head"><div><h2 class="cqa-panel-title">Последние диалоги</h2><div class="cqa-panel-sub">Быстрый переход к транскрипту и оценке</div></div><button class="cqa-btn" id="all-dialogs">Все диалоги →</button></div>
-        <div class="cqa-table-wrap"><table class="cqa-table"><thead><tr><th>ДИАЛОГ</th><th>КАНАЛ</th><th>ЯЗЫК</th><th>СООБЩЕНИЯ</th><th>БАЛЛ</th><th>СТАТУС</th><th></th></tr></thead><tbody>${dialogs.map(d => `<tr><td class="cqa-id">${d.conversation_id}</td><td>${d.channel === "voice call" ? "Звонок" : "Чат"}</td><td>${d.language}</td><td>${d.transcript.length}</td><td class="cqa-score">${d.total_score ?? "—"}</td><td><span class="cqa-badge ${d.total_score === null ? "cqa-badge-neutral" : "cqa-badge-success"}">${d.total_score === null ? "Не оценён" : "Оценён"}</span></td><td><button class="cqa-link" data-id="${d.conversation_id}">Открыть</button></td></tr>`).join("")}</tbody></table></div>
+        <div class="cqa-table-wrap"><table class="cqa-table"><thead><tr><th>ДИАЛОГ</th><th>КАНАЛ</th><th>ЯЗЫК</th><th>СООБЩЕНИЯ</th><th>БАЛЛ</th><th>СТАТУС</th><th></th></tr></thead><tbody>${dialogs.map(d => `<tr><td class="cqa-id">${this.escape(d.conversation_id)}</td><td>${d.channel === "voice call" ? "Звонок" : "Чат"}</td><td>${this.escape(d.language)}</td><td>${d.transcript.length}</td><td class="cqa-score">${d.total_score ?? "—"}</td><td><span class="cqa-badge ${d.total_score === null ? "cqa-badge-neutral" : "cqa-badge-success"}">${d.total_score === null ? "Не оценён" : "Оценён"}</span></td><td><button class="cqa-link" data-id="${this.escape(d.conversation_id)}">Открыть</button></td></tr>`).join("")}</tbody></table></div>
       </section>`;
     content.querySelector("#all-dialogs").addEventListener("click", () => window.location.hash = "conversations");
     content.querySelectorAll("[data-id]").forEach(button => button.addEventListener("click", () => window.location.hash = `evaluation/${encodeURIComponent(button.dataset.id)}`));
