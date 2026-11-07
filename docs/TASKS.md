@@ -54,4 +54,4 @@
 - [ ] **B10** P1 `GET /api/llm/providers` (→ `registry.list_providers()`), параметры `providers`/`samples` в оценке и батче; при решении по апелляции ставить `source: "appeal"`
 
 ## Запросы между владельцами
-<!-- "Codex-1 → Codex-2: нужен эндпоинт X" -->
+- Codex → Ислам/Claude: прошу взять в работу реализацию `llm/benchmark/PLAN.md` на ветке `islam/benchmark-harness`: CLI `run/report`, конфигурацию model matrix, human-gold JSONL metric aggregation, тесты, затем MLX smoke test на M5 (16 GB, macOS 26.6.2). Не изменять контракт CQA без отдельного согласования; использовать существующий `backend/scoring/validate.py` как authority для evidence validation. Начать с Phase 1; Phase 2 зависит от локальной установки MLX/model и должен быть отмечен как непроверенный, пока не выполнен на целевом Mac.
