@@ -17,7 +17,7 @@ const CRITERION_TEXT = {
   closing:{ru:["Завершение","Оператор қорытынды жасап немесе қосымша көмек ұсынып, қоштасты."],kz:["Диалогты аяқтау","Оператор қорытынды жасап немесе қосымша көмек ұсынып, қоштасты."],en:["Closing","The operator summarized or offered further help and said goodbye."]},
   gross_errors:{ru:["Грубые ошибки","Отметьте оскорбления, обход компании или раскрытие конфиденциальной информации."],kz:["Өрескел қателер","Қорлау, компанияны айналып өту немесе құпия ақпаратты жариялау жағдайларын белгілеңіз."],en:["Critical errors","Flag insults, bypassing the company, or disclosure of confidential information."]}
 };
-\nconst criterionAnswer = result => result.answer === "yes" ? "Да" : result.answer === "no" ? "Нет" : result.answer === "na" ? "Н/П" : result.answer;
+const criterionAnswer = result => result.answer === "yes" ? "Да" : result.answer === "no" ? "Нет" : result.answer === "na" ? "Н/П" : result.answer;
 class CqaEvaluation extends HTMLElement {
   async connectedCallback() {
     this.language = "ru"; this.selectedCriterion = null; this.evaluation = null;
@@ -31,7 +31,7 @@ class CqaEvaluation extends HTMLElement {
       this.render();
     } catch(error) { this.innerHTML = `<div class="cqa-empty">${error.message}</div>`; }
   }
-  render() {
+  t(key) { return UI[this.language]?.[key] || UI.ru[key] || key; }\n  render() {
     const dialog = this.dialog, evaluation = this.evaluation;
     const total = evaluation?.total_score;
     this.innerHTML = `
@@ -42,7 +42,7 @@ class CqaEvaluation extends HTMLElement {
           ${dialog.audio_url ? `<audio controls preload="none" src="${dialog.audio_url}" style="width:100%;margin-bottom:14px"></audio>` : ""}
           <div class="cqa-transcript">${dialog.transcript.map((message,index) => `<article class="cqa-message ${message.speaker}" id="msg-${message.msg_index ?? index}"><div class="cqa-message-meta"><span class="cqa-message-role">${roleLabels[message.speaker] || message.speaker}</span><span>${message.timestamp}</span></div><div class="cqa-message-text">${this.escape(message.text)}</div></article>`).join("")}</div>
         </div></section>
-        <section class="cqa-column"><div class="cqa-card cqa-panel"><div class="cqa-panel-head"><div><h2 class="cqa-panel-title">${this.t("criteria")}</h2><div class="cqa-panel-sub">8 критериев · вес перераспределяется для Н/П</div></div></div>
+        <section class="cqa-column"><div class="cqa-card cqa-panel"><div class="cqa-panel-head"><div><h2 class="cqa-panel-title">${this.t("criteria")}</h2><div class="cqa-panel-sub">${this.t("criteriaHint")}</div></div></div>
           ${evaluation ? `<div class="cqa-score-summary"><div class="cqa-score-big">${total ?? "—"}<small style="font-size:12px;color:#929bad"> / 100</small></div><div><div style="font-size:11px;font-weight:700">${this.t("finalScore")}</div><div class="cqa-score-caption">${this.t("source")}: ${evaluation.model || "mock"} · ${evaluation.samples || 1} ${this.t("samples")}</div></div></div>` : '<div class="cqa-validation" style="margin:0 0 10px">Оценка ещё не запускалась. Нажмите «Запустить оценку», чтобы получить демонстрационный результат.</div>'}
           <div id="criteria-list">${this.checklist.criteria.map(criterion => {
             const result = evaluation?.results?.find(item => item.criterion_id === criterion.id);
@@ -51,15 +51,15 @@ class CqaEvaluation extends HTMLElement {
             const pct = score === null ? 0 : Math.max(0,Math.min(100,score/max*100));
             return `<div class="cqa-criterion"><div class="cqa-criterion-head"><span class="cqa-criterion-name">${CRITERION_TEXT[criterion.id]?.[this.language]?.[0] || criterion.title}</span><span class="cqa-criterion-score">${result ? criterionAnswer(result) + (criterion.answer_type === "scale" ? "/" + max : "") : "—"}</span></div><p class="cqa-criterion-desc">${CRITERION_TEXT[criterion.id]?.[this.language]?.[1] || criterion.description}</p><div class="cqa-progress"><span style="width:${pct}%"></span></div><div class="cqa-criterion-foot"><span class="cqa-muted" style="font-size:9px">${this.t("weight")}: ${criterion.weight}% ${result?.answer === "na" ? "· Н/П" : ""}</span><button class="cqa-text-button" data-criterion="${criterion.id}">${this.t("details")}</button></div></div>`;
           }).join("")}</div>
-          ${evaluation?.critical_error ? '<div class="cqa-validation" style="background:#fff0f1;color:#b52f42">Обнаружена грубая ошибка. Флаг отображается отдельно и не уменьшает балл при текущей политике чек-листа.</div>' : ""}
+          ${evaluation?.critical_error ? '<div class="cqa-validation" style="background:#fff0f1;color:#b52f42">${this.t("grossError")}</div>' : ""}
         </div></section>
-        <section class="cqa-column"><div class="cqa-card cqa-panel"><div class="cqa-panel-head"><div><h2 class="cqa-panel-title">${this.t("evidence")}</h2><div class="cqa-panel-sub">Цитата из исходного транскрипта</div></div></div><div id="evidence-content"><div class="cqa-empty" style="padding:24px 8px">Выберите критерий, чтобы посмотреть объяснение и доказательства.</div></div>
-          ${evaluation?.needs_review ? '<div class="cqa-validation">Модели разошлись в оценке одного или нескольких критериев. Требуется проверка человеком.</div>' : ""}
-          ${evaluation?.results?.some(r => r.validated === false) ? '<div class="cqa-validation">Некоторые доказательства не прошли автоматическую проверку. Проверьте отмеченные критерии.</div>' : ""}
-          <div class="cqa-footer-note">В демо-режиме результат основан на фикстуре и не является выводом подключённой LLM.</div>
+        <section class="cqa-column"><div class="cqa-card cqa-panel"><div class="cqa-panel-head"><div><h2 class="cqa-panel-title">${this.t("evidence")}</h2><div class="cqa-panel-sub">${this.t("evidenceHint")}</div></div></div><div id="evidence-content"><div class="cqa-empty" style="padding:24px 8px">${this.t("chooseCriterion")}</div></div>
+          ${evaluation?.needs_review ? '<div class="cqa-validation">${this.t("needsReview")}</div>' : ""}
+          ${evaluation?.results?.some(r => r.validated === false) ? '<div class="cqa-validation">${this.t("invalidEvidence")}</div>' : ""}
+          <div class="cqa-footer-note">${this.t("mockNote")}</div>
         </div></section>
       </div>`;
-    this.querySelectorAll("[data-lang]").forEach(button => button.addEventListener("click", () => { this.language = button.dataset.lang; this.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("active", b === button)); if (this.selectedCriterion) this.showEvidence(this.selectedCriterion); }));
+    this.querySelectorAll("[data-lang]").forEach(button => button.addEventListener("click", () => { this.language = button.dataset.lang; this.render(); }));
     this.querySelectorAll("[data-criterion]").forEach(button => button.addEventListener("click", () => { this.selectedCriterion = button.dataset.criterion; this.showEvidence(this.selectedCriterion); }));
     this.querySelector("#run").addEventListener("click", () => this.run());
     if (this.evaluation?.results?.length) { this.selectedCriterion = this.evaluation.results[0].criterion_id; this.showEvidence(this.selectedCriterion); }
@@ -69,9 +69,9 @@ class CqaEvaluation extends HTMLElement {
     const result = this.evaluation?.results?.find(item => item.criterion_id === id);
     const panel = this.querySelector("#evidence-content");
     if (!criterion || !panel) return;
-    const explanation = result?.explanations?.[this.language] || result?.explanation || "Для этого критерия пока нет объяснения.";
+    const explanation = result?.explanations?.[this.language] || result?.explanation || "${this.t("noExplanation")}";
     const naReason = result?.na_reasons?.[this.language] || result?.na_reason;
-    panel.innerHTML = `<div style="font-size:11px;font-weight:700;color:#303b51">${criterion.title}</div><div style="font-size:10px;color:#7d8799;line-height:1.6;margin:9px 0">${this.escape(explanation)}</div>${result?.answer === "na" ? `<div class="cqa-validation">${this.t("naReason")}: ${this.escape(naReason || this.t("noReason"))}</div>` : ""}${(result?.evidence || []).map(item => `<button class="cqa-evidence-quote" data-message="${item.msg_index}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">“${this.escape(item.quote)}”<span style="display:block;color:#898fa0;font-size:9px;margin-top:7px">${this.t("goToMessage")} #${item.msg_index} ↗</span></button>`).join("") || '<div class="cqa-evidence-quote">Доказательства не приложены.</div>'}<div style="margin-top:12px"><span class="cqa-badge ${result?.validated === false ? "cqa-badge-warning" : "cqa-badge-success"}">${result ? (result.validated === false ? this.t("invalid") : this.t("valid")) : this.t("pending")}</span></div>`;
+    panel.innerHTML = `<div style="font-size:11px;font-weight:700;color:#303b51">${criterion.title}</div><div style="font-size:10px;color:#7d8799;line-height:1.6;margin:9px 0">${this.escape(explanation)}</div>${result?.answer === "na" ? `<div class="cqa-validation">${this.t("naReason")}: ${this.escape(naReason || this.t("noReason"))}</div>` : ""}${(result?.evidence || []).map(item => `<button class="cqa-evidence-quote" data-message="${item.msg_index}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">“${this.escape(item.quote)}”<span style="display:block;color:#898fa0;font-size:9px;margin-top:7px">${this.t("goToMessage")} #${item.msg_index} ↗</span></button>`).join("") || '<div class="cqa-evidence-quote">${this.t("noEvidence")}</div>'}<div style="margin-top:12px"><span class="cqa-badge ${result?.validated === false ? "cqa-badge-warning" : "cqa-badge-success"}">${result ? (result.validated === false ? this.t("invalid") : this.t("valid")) : this.t("pending")}</span></div>`;
     panel.querySelectorAll("[data-message]").forEach(button => button.addEventListener("click", () => {
       const message = this.querySelector(`#msg-${button.dataset.message}`);
       if (message) { message.scrollIntoView({ behavior:"smooth", block:"center" }); message.classList.add("evidence-highlight"); setTimeout(() => message.classList.remove("evidence-highlight"), 2000); }
@@ -85,7 +85,7 @@ class CqaEvaluation extends HTMLElement {
       this.evaluation = await api.runEvaluation({ conversation_id:this.dialog.conversation_id, checklist_id:this.checklist.id, providers:provider, samples:3 });
       this.render();
       const notice = document.createElement("div"); notice.className = "cqa-toast"; notice.textContent = api.isMock() ? this.t("demoLoaded") : this.t("requestSent"); document.body.append(notice); setTimeout(() => notice.remove(), 2500);
-    } catch(error) { button.disabled = false; button.textContent = "▶ Запустить оценку"; alert(error.message); }
+    } catch(error) { button.disabled = false; button.textContent = this.t("run"); alert(error.message); }
   }
   escape(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[char])); }
 }
