@@ -39,11 +39,11 @@ LLM_PROVIDERS=local
 После запуска сервера и настройки `.env`:
 
 ```bash
-python -m llm.benchmark.smoke \\
-  --dialogs llm/data/DEV.json \\
-  --checklist checklists/default.json \\
-  --model mlx-community/Qwen3.5-4B-MLX-4bit \\
-  --ids p1-ru-001 p1-kz-001 p1-en-001 \\
+python -m llm.benchmark.smoke \
+  --dialogs llm/data/DEV.json \
+  --checklist checklists/default.json \
+  --model mlx-community/Qwen3.5-4B-MLX-4bit \
+  --ids p1-ru-001 p1-kz-001 p1-en-001 \
   --out llm/runs/vlm-smoke.json
 ```
 
