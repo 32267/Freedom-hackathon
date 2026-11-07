@@ -19,14 +19,16 @@ class CqaApp extends HTMLElement {
     this.innerHTML = `
       <div class="cqa-shell">
         <aside class="cqa-sidebar">
-          <div class="cqa-brand"><span class="cqa-brand-mark">F</span>
-            <span class="cqa-brand-name">FREEDOM BROKER<small>КОНТРОЛЬ КАЧЕСТВА</small></span></div>
-          <div class="cqa-nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-          <nav class="cqa-nav">${Object.entries(ROUTES).map(([key, r]) => `
-            <a href="#${key}" data-route="${key}"><span class="cqa-nav-icon">${r.icon}</span><span>${r.title}</span>
-              ${key === "appeals" ? '<span class="cqa-nav-count" id="appeal-count" hidden></span>' : ""}</a>`).join("")}
-          </nav>
-          <div class="cqa-sidebar-foot"><span class="cqa-status-dot"></span>Оценка чатов и звонков<br>RU · KZ · EN · чек-лист Freedom Broker</div>
+          <div class="cqa-side-panel">
+            <a class="cqa-brand" href="#dashboard" aria-label="Freedom Broker — на главную">
+              <img class="cqa-brand-mark" src="./assets/freedom-mark.png" alt="Freedom">
+              <img class="cqa-brand-logo" src="./assets/freedom-logo.png" alt="Freedom"></a>
+            <nav class="cqa-nav">${Object.entries(ROUTES).map(([key, r]) => `
+              <a href="#${key}" data-route="${key}" title="${r.title}"><span class="cqa-nav-icon">${r.icon}</span><span class="cqa-nav-text">${r.title}</span>
+                ${key === "appeals" ? '<span class="cqa-nav-count" id="appeal-count" hidden></span>' : ""}</a>`).join("")}
+            </nav>
+            <button class="cqa-pin" id="pin" title="Закрепить панель">»</button>
+          </div>
         </aside>
         <main class="cqa-main">
           <header class="cqa-topbar">
@@ -41,6 +43,10 @@ class CqaApp extends HTMLElement {
         </main>
       </div>`;
     this.querySelectorAll("[data-lang]").forEach(b => b.addEventListener("click", () => this.setLang(b.dataset.lang)));
+    let pinned = false;
+    try { pinned = localStorage.getItem("cqa-sidebar-pinned") === "1"; } catch { /* хранилище недоступно */ }
+    this.setPinned(pinned);
+    this.querySelector("#pin").addEventListener("click", () => this.setPinned(!this.querySelector(".cqa-shell").classList.contains("pinned")));
     this.setLang(this.getAttribute("lang") || "ru", false);
     this.addEventListener("cqa:open-dialog", e => { window.location.hash = `evaluation/${encodeURIComponent(e.detail.conversationId)}`; });
     this.addEventListener("cqa:appeals-changed", () => this.refreshAppealCount());
@@ -48,6 +54,14 @@ class CqaApp extends HTMLElement {
     window.addEventListener("hashchange", () => this.route());
     this.route();
     this.refreshAppealCount();
+  }
+
+  setPinned(pinned) {
+    this.querySelector(".cqa-shell").classList.toggle("pinned", pinned);
+    const pin = this.querySelector("#pin");
+    pin.textContent = pinned ? "«" : "»";
+    pin.title = pinned ? "Свернуть панель" : "Закрепить панель";
+    try { localStorage.setItem("cqa-sidebar-pinned", pinned ? "1" : "0"); } catch { /* хранилище недоступно */ }
   }
 
   setLang(lang, notify = true) {

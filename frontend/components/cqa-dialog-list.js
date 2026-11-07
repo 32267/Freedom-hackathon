@@ -11,8 +11,8 @@ class CqaDialogList extends HTMLElement {
           <button class="cqa-btn" id="import">⇣ Импорт набора</button>
         </div></div>
       <div class="cqa-card cqa-panel" style="margin-bottom:14px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:10px">Оценка диалогов</div>
         <div class="cqa-row">
-          <strong class="cqa-grow" style="font-size:13.5px">Оценка</strong>
           <span class="cqa-muted" style="font-size:12px">Оценщик</span><select class="cqa-select" id="preset"></select>
           <button class="cqa-btn" id="eval-selected">Оценить выбранные</button>
           <button class="cqa-btn" id="eval-missing">Оценить неоценённые</button>
