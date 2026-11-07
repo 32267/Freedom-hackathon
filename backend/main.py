@@ -5,8 +5,11 @@
 При первом запуске сам наполняет базу: чек-лист из checklists/default.json, диалоги из data/DEV.json
 (или fixtures/, если набора нет) и готовые оценки из dataset/DEV/evaluations/ (если есть).
 """
+import base64
 import json
 import logging
+import os
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
-from fastapi.responses import RedirectResponse  # noqa: E402
+from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from backend import db  # noqa: E402
@@ -53,6 +56,28 @@ async def lifespan(_app):
 
 app = FastAPI(title="CQA — Conversation Quality Analytics", lifespan=lifespan)
 app.add_exception_handler(HTTPException, error_handler)
+
+
+@app.middleware("http")
+async def basic_auth(request, call_next):
+    """CQA_BASIC_AUTH=логин:пароль закрывает сайт и API паролем для тех, кто пришёл через Cloudflare
+    (у таких запросов есть заголовок cf-connecting-ip). Локально (localhost) пароль не спрашивается,
+    если не задан CQA_AUTH_LOCAL=1. /api/health открыт всегда — для проверки, что сервер жив."""
+    creds = os.getenv("CQA_BASIC_AUTH", "").strip()
+    via_cloudflare = "cf-connecting-ip" in request.headers
+    if not creds or request.url.path == "/api/health" or not (via_cloudflare or os.getenv("CQA_AUTH_LOCAL") == "1"):
+        return await call_next(request)
+    header = request.headers.get("authorization", "")
+    given = ""
+    if header.lower().startswith("basic "):
+        try:
+            given = base64.b64decode(header[6:]).decode()
+        except ValueError:
+            given = ""
+    if not secrets.compare_digest(given.encode(), creds.encode()):
+        return JSONResponse({"error": "Нужен логин и пароль"}, status_code=401,
+                            headers={"WWW-Authenticate": 'Basic realm="Freedom Broker CQA"'})
+    return await call_next(request)
 
 
 @app.middleware("http")

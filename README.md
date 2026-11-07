@@ -101,8 +101,8 @@
 
 | Кто | Агент | Зона | Папки |
 |---|---|---|---|
-| Ислам | Claude Code | Оценка, LLM, чек-лист, контракты, ревью | `backend/scoring/`, `backend/llm/`, `checklists/`, `docs/CONTRACTS.md`, `fixtures/` |
-| Участник 2 | Codex-1 | Весь UI | `frontend/` |
+| Ислам | Claude Code | Фронт, формула оценки, чек-лист, контракты, ревью, запуск через Cloudflare | `frontend/`, `backend/scoring/`, `checklists/`, `docs/CONTRACTS.md`, `fixtures/`, `tools/` |
+| Участник 2 | Codex-1 | LLM: провайдеры, промпт, точность на DEV, своя модель | `backend/llm/`, `backend/scoring/prompt.py`, `llm/` |
 | Участник 3 | Codex-2 | API, БД, импорт данных, апелляции, пакетный прогон, README-запуск | `backend/api/`, `backend/db/`, `backend/main.py`, `scripts/` |
 
 Правила работы агентов, ветки, PR — [AGENTS.md](AGENTS.md). Форматы и API — [docs/CONTRACTS.md](docs/CONTRACTS.md). Задачи и таймлайн — [docs/TASKS.md](docs/TASKS.md).
@@ -136,6 +136,15 @@ uvicorn backend.main:app --port 8000
 При первом запуске база `data/cqa.db` наполняется сама: чек-лист, диалоги из `data/DEV.json`
 (если файла нет — забрать набор кнопкой/запросом `POST /api/datasets/DEV/import`) и готовые оценки из `dataset/DEV/evaluations/`.
 Без моделей и затрат: `SCORING_MODE=mock`. Документация API: http://localhost:8000/docs.
+
+**Публичная ссылка через Cloudflare** (показать жюри или команде, сервер остаётся на этом компьютере):
+```bash
+scripts/tunnel.sh
+```
+Скрипт поднимет сервер, если он не запущен, и откроет быстрый туннель Cloudflare (аккаунт не нужен) — в выводе будет
+`https://<...>.trycloudflare.com`. Кто заходит по ссылке, вводит логин и пароль из `CQA_BASIC_AUTH` в `.env`
+(скрипт создаст его сам); локально на `localhost` пароль не спрашивается. Ссылка живёт, пока открыт туннель (Ctrl+C — закрыть).
+Постоянный адрес на своём домене — именованный туннель: `cloudflared tunnel login` → `cloudflared tunnel create cqa` → `cloudflared tunnel route dns cqa <домен>`.
 
 Контрольный набор (час 23):
 ```bash

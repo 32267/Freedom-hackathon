@@ -1,4 +1,4 @@
-# frontend/ — правила (Codex-1)
+# frontend/ — правила (владелец: Ислам / Claude)
 
 - Только vanilla HTML/CSS/JS, ES modules. Никаких npm, сборщиков, фреймворков, CDN.
 - Каждый экран — `frontend/components/cqa-<name>.js`, `customElements.define('cqa-<name>', ...)`.

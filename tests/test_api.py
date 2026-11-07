@@ -122,3 +122,14 @@ def test_stats(client):
     s = client.get("/api/stats").json()
     assert s["dialogs"] == 2 and s["evaluated"] == 1 and s["open_appeals"] == 0
     assert len(s["criteria"]) == 8 and s["groups"][0]["count"] == 1
+
+
+def test_basic_auth_when_enabled(client, monkeypatch):
+    monkeypatch.setenv("CQA_BASIC_AUTH", "jury:secret")
+    cf = {"cf-connecting-ip": "203.0.113.5"}
+    assert client.get("/api/dialogs").status_code == 200                 # локально — без пароля
+    assert client.get("/api/health", headers=cf).status_code == 200
+    assert client.get("/api/dialogs", headers=cf).status_code == 401
+    assert client.get("/frontend/", headers=cf).status_code == 401
+    assert client.get("/api/dialogs", headers=cf, auth=("jury", "wrong")).status_code == 401
+    assert client.get("/api/dialogs", headers=cf, auth=("jury", "secret")).status_code == 200
