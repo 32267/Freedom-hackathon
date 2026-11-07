@@ -23,6 +23,10 @@ def _criterion_block(c: dict) -> str:
         lines.append("Тип: флаг нарушения, без баллов. answer: yes — нарушение найдено, no — не найдено. "
                      f"При yes перечисли в flags виды: {flags}.")
     lines.append(f'Условие: {c["description"]}')
+    if c.get("lower_if"):
+        lines.append("Снижай (Нет / ниже ступень), если: " + "; ".join(c["lower_if"]) + ".")
+    if c.get("keep_if"):
+        lines.append("НЕ снижай, если: " + "; ".join(c["keep_if"]) + ".")
     if c.get("na_allowed") and c.get("na_rule"):
         lines.append(f'N/A допустим, только если: {c["na_rule"]}')
     elif c["answer_type"] != "flag":

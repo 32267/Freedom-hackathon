@@ -16,3 +16,6 @@ llm/models/
 *.gguf
 *.safetensors
 invoke*.json
+
+# Локальная выгрузка диалогов, записей и оценок (данные организаторов)
+dataset/

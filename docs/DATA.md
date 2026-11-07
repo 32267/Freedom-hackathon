@@ -27,6 +27,17 @@
 - **Звонки — автоматическая расшифровка:** искажения («Сами тебе Фридом брокер за кошки…»), смена языка kk-KZ → ru-RU,
   10 подряд идущих дублей реплик. За ошибки распознавания оператора не штрафуем.
 - Последняя реплика: operator — 52, system — 10, client — 3.
+- **Записи звонков:** `audio_url` отдаёт **не mp3, а HTML-страницу плеера** (`text/html`). Внутри
+  `<audio><source src="https://…crm11.dynamics.com/api/filedownload/…&rsct=audio%2Fmpeg">` — подписанная ссылка на mp3,
+  которая живёт **~1 час** (`se=` в ссылке). Значит: backend должен открыть страницу, достать `src` и отдавать mp3 сам
+  (`GET /api/dialogs/{id}/audio` — прокси или локальный кэш), иначе `<audio>` в карточке не сможет перематывать на реплику.
+  Пример разбора — `tools/export_local_dataset.py` (`resolve_audio`). Файлы: mp3, 64 kbps, 16 kHz, моно, 1.9–3.3 МБ.
+
+## Локальная папка с данными
+`python tools/export_local_dataset.py data/DEV.json` → `dataset/DEV/` (в git не попадает):
+`index.md`, `chats/<id>.json|.md`, `calls/<id>.json|.md|.mp3`.
+Оценки всех диалогов: `python -m backend.scoring data/DEV.json --out-dir dataset/DEV/evaluations --workers 3`
+→ по файлу на диалог + `summary.md` / `summary.csv`.
 
 ## Первый прогон (9 диалогов, 3 ответа Claude Haiku 5.5 на каждый)
 - Все цитаты прошли проверку; ~20 с и ~$0.0074 на диалог (≈ $0.0025 за один ответ).
