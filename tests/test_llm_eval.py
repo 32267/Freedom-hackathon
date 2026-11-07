@@ -15,20 +15,27 @@ CHAT = json.loads((ROOT / "fixtures/dialog.chat.json").read_text())
 BY_ID = {c["id"]: c for c in CL["criteria"]}
 
 
+def tri(text):
+    return {"ru": text, "kz": text, "en": text}
+
+
+EMPTY = {"ru": "", "kz": "", "en": ""}
+
+
 def good(answer, idx=3, quote="меня зовут Анна", **kw):
-    return {"evidence": [{"msg_index": idx, "quote": quote}], "explanation": "ok",
-            "checked_range": [], "na_reason": "", "answer": answer, **kw}
+    return {"evidence": [{"msg_index": idx, "quote": quote}], "explanation": tri("ok"),
+            "checked_range": [], "na_reason": EMPTY, "answer": answer, **kw}
 
 
 GOOD = {
     "contact": good("yes"),
     "needs": good("yes", quote="какую ошибку вы видите"),
-    "identification": {**good("na"), "evidence": [], "na_reason": "Общий вопрос, данные не раскрывались"},
+    "identification": {**good("na"), "evidence": [], "na_reason": tri("Общий вопрос, данные не раскрывались")},
     "consultation": good("15", idx=5, quote="Вывести можно свободный остаток"),
     "empathy": good("yes"),
     "dialog_management": good("10", idx=5, quote="Часть средств заблокирована"),
     "closing": good("yes", idx=7, quote="Хорошего дня"),
-    "gross_errors": {"evidence": [], "explanation": "Нарушений нет", "checked_range": [], "na_reason": "",
+    "gross_errors": {"evidence": [], "explanation": tri("Нарушений нет"), "checked_range": [], "na_reason": EMPTY,
                      "flags": [], "answer": "no"},
 }
 
@@ -104,9 +111,25 @@ def test_flag_counts_as_critical(monkeypatch):
 
 
 def test_na_reason_serves_as_explanation():
-    raw = {"evidence": [], "explanation": "", "checked_range": [], "na_reason": "Общий вопрос о тарифах", "answer": "na"}
+    raw = {"evidence": [], "explanation": EMPTY, "checked_range": [], "na_reason": tri("Общий вопрос о тарифах"), "answer": "na"}
     fixed, probs = check_criterion(raw, BY_ID["identification"], CHAT["transcript"])
     assert not probs and fixed["explanation"] == "Общий вопрос о тарифах"
+    assert fixed["na_reasons"]["en"] == "Общий вопрос о тарифах"
+
+
+def test_three_languages_required_and_returned():
+    raw = good("yes", explanation={"ru": "Поздоровался", "kz": "Сәлемдесті", "en": "Greeted"})
+    fixed, probs = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
+    assert not probs and fixed["explanation"] == "Поздоровался"
+    assert fixed["explanations"] == {"ru": "Поздоровался", "kz": "Сәлемдесті", "en": "Greeted"}
+    _, probs = check_criterion(good("yes", explanation={"ru": "Поздоровался", "kz": "", "en": ""}),
+                               BY_ID["contact"], CHAT["transcript"])
+    assert any("kz, en" in p for p in probs)
+
+
+def test_schema_asks_for_three_languages():
+    p = build_schema(CL)["properties"]["criteria"]["properties"]["contact"]["properties"]
+    assert p["explanation"]["required"] == ["ru", "kz", "en"] and p["na_reason"]["required"] == ["ru", "kz", "en"]
 
 
 def test_call_timestamps_shortened_in_prompt_only():

@@ -1,6 +1,11 @@
 """Промпт и JSON-схема строятся из чек-листа целиком — новый критерий из UI работает без правки кода."""
 
-ANSWER_FIELDS = ("evidence", "explanation", "checked_range", "na_reason", "answer")
+LANGS = ("ru", "kz", "en")
+
+
+def _i18n_schema() -> dict:
+    return {"type": "object", "properties": {lang: {"type": "string"} for lang in LANGS},
+            "required": list(LANGS), "additionalProperties": False}
 
 
 def _criterion_block(c: dict) -> str:
@@ -50,10 +55,11 @@ def build_system(checklist: dict) -> str:
 Как заполнять каждый критерий:
 - evidence — реплики, на которых основан вывод: msg_index и quote. quote — дословный фрагмент текста этой реплики
   (на языке оригинала, без перевода и пересказа), достаточно 3–15 слов.
-- explanation — 1–3 предложения на русском: что сделал или не сделал оператор и почему такой ответ.
+- explanation — 1–3 предложения: что сделал или не сделал оператор и почему такой ответ. Пиши одно и то же
+  обоснование на трёх языках: ru — русский, kz — казахский (кириллица), en — английский. Смысл во всех трёх одинаковый.
 - Если требуемое действие пропущено (no или шкала ниже максимума из-за пропуска), checked_range — [от, до]:
   индексы участка, где действие ожидалось. Иначе — пустой массив.
-- Если answer = na — na_reason: какое условие неприменимости выполнено. Иначе — пустая строка.
+- Если answer = na — na_reason: какое условие неприменимости выполнено, тоже на ru, kz, en. Иначе — пустые строки.
 - Для na evidence может быть пустым или указывать реплику, подтверждающую неприменимость.
 - Сначала собери доказательства, потом выбирай answer.
 
@@ -116,9 +122,9 @@ def build_schema(checklist: dict, only: list[str] | None = None) -> dict:
                 "type": "object",
                 "properties": {"msg_index": {"type": "integer"}, "quote": {"type": "string"}},
                 "required": ["msg_index", "quote"], "additionalProperties": False}},
-            "explanation": {"type": "string"},
+            "explanation": _i18n_schema(),
             "checked_range": {"type": "array", "items": {"type": "integer"}},
-            "na_reason": {"type": "string"},
+            "na_reason": _i18n_schema(),
         }
         if c["answer_type"] == "flag":
             p["flags"] = {"type": "array", "items": {"type": "string", "enum": [f["id"] for f in c.get("flag_types", [])]}}

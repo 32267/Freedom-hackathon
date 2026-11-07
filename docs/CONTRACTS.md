@@ -109,7 +109,8 @@ LLM_SAMPLES независимых ответов → по каждому кри
       "weight": 10,
       "effective_weight": 12.5,       // после перераспределения N/A
       "weighted_score": 12.5,
-      "explanation": "Оператор поздоровался в первой реплике...",
+      "explanation": "Оператор поздоровался в первой реплике...",   // = explanations.ru (для совместимости)
+      "explanations": {"ru": "Оператор поздоровался...", "kz": "Оператор сәлемдесті...", "en": "The agent greeted..."},
       "evidence": [{"msg_index": 0, "quote": "Здравствуйте!"}],   // quote обязана быть подстрокой реплики
       "source": "llm",                // "llm" | "rule" (посчитано кодом) | "appeal" (изменено проверяющим)
       "validated": true,              // прошло проверку доказательств
@@ -119,7 +120,8 @@ LLM_SAMPLES независимых ответов → по каждому кри
       "needs_review": false,          // ответы моделей разошлись → показать проверяющему
       "flags": [],                    // только для flag: какие нарушения найдены
       "checked_range": null,          // если действие пропущено: где ожидалось {"from": 0, "to": 12}
-      "na_reason": null
+      "na_reason": null,              // = na_reasons.ru
+      "na_reasons": null              // при N/A: {"ru": "...", "kz": "...", "en": "..."}
     }
   ],
   "created_at": "2026-11-07T10:00:00Z"
@@ -165,6 +167,9 @@ def evaluate(dialog: dict, checklist: dict) -> dict: ...      # вернёт Eva
 def recompute(evaluation: dict, checklist: dict) -> dict: ... # пересчёт итогов после апелляции, без LLM
 ```
 Пока не готово — `backend/scoring/mock.py` отдаёт фейковый Evaluation той же формы.
+
+**Языки обоснований:** `explanations` и `na_reasons` всегда на `ru`, `kz`, `en` (одинаковый смысл).
+Цитаты в `evidence` — на языке оригинала диалога. UI показывает выбранный язык, по умолчанию `ru`.
 
 Батч (`POST /api/evaluations/batch`) возвращает `{"job_id"}`; прогресс — `GET /api/jobs/{job_id}` →
 `{"total": 65, "done": 40, "failed": 1, "status": "running"}`. Параллельность 4–8, ретраи, кэш.

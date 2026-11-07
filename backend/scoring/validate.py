@@ -22,6 +22,16 @@ def _find_quote(quote: str, msg_index: int, transcript: list[dict]) -> int | Non
     return None
 
 
+LANGS = ("ru", "kz", "en")
+
+
+def _i18n(value) -> dict:
+    """{"ru","kz","en"} из объекта модели; строка (старый формат) считается русской."""
+    if isinstance(value, dict):
+        return {lang: (value.get(lang) or "").strip() for lang in LANGS}
+    return {"ru": (value or "").strip(), "kz": "", "en": ""}
+
+
 def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple[dict, list[str]]:
     """Возвращает (исправленный ответ, список проблем). Исправляет только безопасное: сдвиг msg_index."""
     problems = []
@@ -55,7 +65,8 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple
         else:
             problems.append(f"checked_range={rng} некорректен (нужно [от, до] в пределах 0..{n - 1})")
 
-    na_reason = (raw.get("na_reason") or "").strip()
+    na_reasons = _i18n(raw.get("na_reason"))
+    na_reason = na_reasons["ru"]
     if answer == "na" and not na_reason:
         problems.append("answer=na без na_reason")
     if answer == "yes" and not evidence:
@@ -66,16 +77,23 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple
                                       and str(answer) != str(criterion["scale"]["max"]))
     if ctype != "flag" and is_shortfall and not evidence and checked is None:
         problems.append("снижение балла без доказательства и без checked_range")
-    explanation = (raw.get("explanation") or "").strip() or (na_reason if answer == "na" else "")
-    if not explanation:
-        problems.append("пустое explanation")
+    explanations = _i18n(raw.get("explanation"))
+    if answer == "na":                         # для N/A причина может служить обоснованием
+        explanations = {lang: explanations[lang] or na_reasons[lang] for lang in LANGS}
+    missing = [lang for lang in LANGS if not explanations[lang]]
+    if missing:
+        problems.append(f"explanation пустое на языках: {', '.join(missing)}")
+    if answer == "na" and na_reason and any(not na_reasons[lang] for lang in LANGS):
+        problems.append("na_reason нужен на ru, kz и en")
 
     fixed = {
         "answer": answer if ctype != "scale" or answer == "na" or answer is None else _to_num(answer),
-        "explanation": explanation,
+        "explanation": explanations["ru"],
+        "explanations": explanations,
         "evidence": evidence,
         "checked_range": checked,
         "na_reason": na_reason or None,
+        "na_reasons": na_reasons if answer == "na" else None,
         "flags": list(raw.get("flags") or []) if ctype == "flag" else [],
     }
     return fixed, problems

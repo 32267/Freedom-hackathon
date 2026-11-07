@@ -30,9 +30,15 @@ def evaluate(dialog: dict, checklist: dict) -> dict:
             "max_score": None if c["answer_type"] == "flag" else 1 if c["answer_type"] == "binary" else c["scale"]["max"],
             "flags": flags,
             "explanation": f"[MOCK] Объяснение по критерию «{c['title']}».",
+            "explanations": {"ru": f"[MOCK] Объяснение по критерию «{c['title']}».",
+                             "kz": f"[MOCK] «{c['title']}» критерийі бойынша түсіндірме.",
+                             "en": f"[MOCK] Explanation for criterion “{c['id']}”."},
             "evidence": evidence,
             "checked_range": {"from": 0, "to": len(dialog["transcript"]) - 1} if answer == "no" and c["answer_type"] != "flag" else None,
             "na_reason": "[MOCK] Критерий неприменим к этому диалогу." if answer == "na" else None,
+            "na_reasons": {"ru": "[MOCK] Критерий неприменим к этому диалогу.",
+                           "kz": "[MOCK] Критерий бұл диалогқа қолданылмайды.",
+                           "en": "[MOCK] The criterion does not apply to this dialog."} if answer == "na" else None,
             "source": "llm", "validated": True,
         })
     return {
