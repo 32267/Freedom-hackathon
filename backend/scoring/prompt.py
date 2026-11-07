@@ -9,7 +9,7 @@ def _i18n_schema() -> dict:
 
 
 def _criterion_block(c: dict) -> str:
-    lines = [f'{c["id"]} — {c["title"]}']
+    lines = [f'### {c["id"]} — {c["title"]}']
     if c["answer_type"] == "binary":
         opts = "yes/no" + ("/na" if c.get("na_allowed") else "")
         lines.append(f'Тип: binary ({opts}); вес {c["weight"]}.')
@@ -28,7 +28,7 @@ def _criterion_block(c: dict) -> str:
     if c.get("na_allowed") and c.get("na_rule"):
         lines.append(f'N/A только если: {c["na_rule"]}')
     elif c["answer_type"] != "flag":
-        lines.append("N/A запрещён.")
+        lines.append("N/A для этого критерия запрещён.")
     return "\n".join(lines)
 
 
@@ -36,7 +36,7 @@ def build_system(checklist: dict, only: list[str] | None = None) -> str:
     notes = "\n".join(f"- {n}" for n in checklist.get("notes", []))
     selected = [c for c in checklist["criteria"] if not only or c["id"] in only]
     criteria = "\n\n".join(_criterion_block(c) for c in selected)
-    return f"""Ты — аудитор качества поддержки Freedom Broker. Оценивай только действия operator по чек-листу «{checklist["name"]}».
+    return f"""Ты — аудитор качества поддержки Freedom Broker. Оценивай только фактические действия и реплики оператора по чек-листу «{checklist["name"]}».
 
 Транскрипт пронумерован; роли operator, client, bot, system. bot/system — только контекст, их действия не засчитывай оператору. Системные события о подтверждении личности, закрытии чата, выходе клиента, разрыве соединения и паузах записи — факты. Скрытые маркеры персональных данных означают, что данные были произнесены. В звонках возможны ошибки распознавания: оценивай смысл, не качество транскрипции.
 
@@ -44,7 +44,7 @@ def build_system(checklist: dict, only: list[str] | None = None) -> str:
 {notes}
 
 Порядок оценки:
-1. Сначала применимость и N/A: явное na_rule или исключение keep_if, означающее неприменимость, даёт na, если разрешено.
+1. Сначала проверь применимость критерия и условия N/A: явное na_rule или исключение keep_if, означающее неприменимость, даёт na, если разрешено.
 2. keep_if имеет приоритет над похожим lower_if. Не отменяй исключение общим правилом.
 3. Определи требуемое в ситуации действие. Не требуй необязательных вопросов, скриптовых фраз или эмоций.
 4. Учитывай только подтверждённые действия оператора; не делай выводов по предположениям или действиям других ролей.
