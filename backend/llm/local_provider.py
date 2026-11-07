@@ -4,7 +4,7 @@
   LOCAL_LLM_URL=http://localhost:11434/v1     # базовый URL с /v1
   LOCAL_LLM_MODEL=cqa-judge                   # имя модели на сервере
   LOCAL_LLM_API_KEY=                          # если сервер требует
-  LOCAL_LLM_MAX_TOKENS=12288                  # максимум токенов ответа
+  LOCAL_LLM_MAX_TOKENS=3072                  # максимум токенов ответа
   LOCAL_LLM_TIMEOUT=600                       # таймаут запроса в секундах
   LOCAL_LLM_REPETITION_PENALTY=1.1            # штраф за повторение (1.0 отключает)
   LOCAL_LLM_REPETITION_CONTEXT_SIZE=64        # окно токенов для штрафа за повторение
@@ -100,7 +100,7 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
     headers = {"Authorization": f"Bearer {os.getenv('LOCAL_LLM_API_KEY', '').strip()}"} if os.getenv("LOCAL_LLM_API_KEY") else {}
 
     try:
-        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "12288"))
+        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "3072"))
         if max_tokens < 1:
             raise ValueError
     except ValueError as e:

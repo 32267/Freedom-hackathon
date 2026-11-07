@@ -22,6 +22,7 @@ def test_not_configured(monkeypatch):
 
 
 def test_calls_openai_compatible_server(monkeypatch):
+    monkeypatch.delenv("LOCAL_LLM_MAX_TOKENS", raising=False)
     monkeypatch.setenv("LOCAL_LLM_URL", "http://localhost:11434/v1/")
     monkeypatch.setenv("LOCAL_LLM_MODEL", "cqa-judge")
     seen = {}
@@ -34,6 +35,7 @@ def test_calls_openai_compatible_server(monkeypatch):
     res = call_json("sys", "user", {"type": "object"}, "local")
     assert seen["url"] == "http://localhost:11434/v1/chat/completions"
     assert seen["body"]["response_format"]["json_schema"]["schema"] == {"type": "object"}
+    assert seen["body"]["max_tokens"] == 3072
     assert seen["body"]["repetition_penalty"] == 1.1
     assert seen["body"]["repetition_context_size"] == 64
     assert res.data == {"criteria": {}} and res.model == "local:cqa-judge" and res.provider == "local"
