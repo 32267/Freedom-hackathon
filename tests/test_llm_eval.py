@@ -171,3 +171,22 @@ def test_contact_na_only_for_calls():
     assert any("только в канале" in p for p in probs)
     _, probs = check_criterion(raw, contact, CHAT["transcript"], "voice call")
     assert not probs
+
+
+
+def test_non_na_answer_must_not_include_na_reason():
+    raw = good("yes", na_reason=tri("Не применимо"))
+    _, problems = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
+    assert any("na_reason должен быть пустым" in problem for problem in problems)
+
+
+def test_flag_no_cannot_include_confidential_flag():
+    raw = {**GOOD["gross_errors"], "flags": ["confidential"]}
+    _, problems = check_criterion(raw, BY_ID["gross_errors"], CHAT["transcript"])
+    assert any("answer=no не должен содержать flags" in problem for problem in problems)
+
+
+def test_flag_yes_rejects_unknown_flag_types():
+    raw = good("yes", idx=5, quote="Часть средств заблокирована", flags=["private_name"])
+    _, problems = check_criterion(raw, BY_ID["gross_errors"], CHAT["transcript"])
+    assert any("неизвестные flags" in problem for problem in problems)
