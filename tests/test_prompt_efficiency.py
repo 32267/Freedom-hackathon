@@ -22,7 +22,7 @@ def test_system_prompt_keeps_decision_rules_but_requests_compact_explanations():
     prompt = build_system(_checklist(), only=["contact"])
 
     assert "keep_if имеет приоритет" in prompt
-    assert "Оценивай только действия operator" in prompt
+    assert "Оценивай только фактические действия и реплики оператора" in prompt
     assert "максимум ОДНО короткое предложение" in prompt
     assert "до 18 слов на язык" in prompt
     assert "Верни только объект по JSON Schema" in prompt
