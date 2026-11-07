@@ -1,8 +1,8 @@
 # CQA model benchmark plan
 
-Status: **Phase 1 implemented in PR #8; Phase 2 not started**  
+Status: **Phase 1 merged in PR #11; Phase 2 tooling prepared, target-Mac validation pending**  
 Owner: CQA / LLM workstream  
-Branch: `islam/model-benchmark`
+Branch: `codex/benchmark-phase2`
 
 ## Decision
 
