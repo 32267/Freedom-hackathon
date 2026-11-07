@@ -1,4 +1,4 @@
-"""Один «ответ» одного провайдера: вызов на все критерии → проверка → повтор только по проблемным критериям.
+"""Один «ответ» одного провайдера: отдельный вызов на каждый критерий → проверка → повтор проблемных критериев.
 Сравнение нескольких ответов и выбор провайдеров — в ensemble.py."""
 from datetime import datetime, timezone
 
@@ -9,7 +9,7 @@ from .prompt import build_schema, build_system, build_user
 from .validate import check_criterion
 
 MAX_RETRIES = 1
-CRITERIA_PER_REQUEST = 2
+CRITERIA_PER_REQUEST = 1
 
 
 def _usage(acc: dict, res) -> None:
@@ -50,16 +50,22 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
     for _ in range(MAX_RETRIES):
         if not problems:
             break
-        only = list(problems)
-        feedback = "\n".join(f"- {cid}: {'; '.join(p)}" for cid, p in problems.items())
-        try:
-            retry_system = build_system(checklist, only=only)
-            res = call_json(retry_system, build_user(dialog, only=only, feedback=feedback), build_schema(checklist, only), spec)
-        except LLMError:
-            break
-        _usage(usage, res)
-        retry_raw = res.data.get("criteria", {})
-        for cid in only:
+        # Keep retries criterion-scoped too: a combined retry can recreate the
+        # oversized response that per-criterion initial calls are designed to avoid.
+        for cid in list(problems):
+            feedback = f"- {cid}: {'; '.join(problems[cid])}"
+            try:
+                retry_system = build_system(checklist, only=[cid])
+                res = call_json(
+                    retry_system,
+                    build_user(dialog, only=[cid], feedback=feedback),
+                    build_schema(checklist, only=[cid]),
+                    spec,
+                )
+            except LLMError:
+                continue
+            _usage(usage, res)
+            retry_raw = res.data.get("criteria", {})
             if cid not in retry_raw:
                 continue
             fixed, probs = check_criterion(retry_raw[cid], by_id[cid], transcript)
