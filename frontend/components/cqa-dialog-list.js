@@ -15,13 +15,14 @@ class CqaDialogList extends HTMLElement {
     });
     await this.load();
   }
+  escape(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
   async load() {
     const filters = { search: this.querySelector("#search").value, language: this.querySelector("#language").value, channel: this.querySelector("#channel").value };
     try {
       let dialogs = await api.getDialogs(filters);
       const status = this.querySelector("#status").value;
       if (status) dialogs = dialogs.filter(d => d.evaluation_status === status);
-      this.rows.innerHTML = dialogs.length ? dialogs.map((d,index) => `<tr><td><input class="dialog-check" type="checkbox" value="${d.conversation_id}" aria-label="Выбрать диалог"></td><td><span class="cqa-id">${d.conversation_id}</span><div class="cqa-muted" style="font-size:9px;margin-top:4px">${d.dataset_group_id || "DEV"}</div></td><td>${d.transcript[0]?.timestamp || "—"}</td><td>${d.channel === "voice call" ? "☎ Звонок" : "▤ Чат"}</td><td>${d.language}</td><td>${d.transcript.length}</td><td class="cqa-score">${d.total_score ?? "—"}</td><td><span class="cqa-badge ${d.total_score === null ? "cqa-badge-neutral" : "cqa-badge-success"}">${d.total_score === null ? "Не оценён" : "Оценён"}</span>${d.critical_error ? '<span class="cqa-badge cqa-badge-danger">Грубая ошибка</span>' : ""}</td><td><button class="cqa-link" data-open="${d.conversation_id}">Открыть →</button></td></tr>`).join("") : '<tr><td colspan="9"><div class="cqa-empty">Диалоги не найдены. Измените фильтры или поисковый запрос.</div></td></tr>';
+      this.rows.innerHTML = dialogs.length ? dialogs.map((d,index) => `<tr><td><input class="dialog-check" type="checkbox" value="${this.escape(d.conversation_id)}" aria-label="Выбрать диалог"></td><td><span class="cqa-id">${this.escape(d.conversation_id)}</span><div class="cqa-muted" style="font-size:9px;margin-top:4px">${this.escape(d.dataset_group_id || "DEV")}</div></td><td>${this.escape(d.transcript[0]?.timestamp || "—")}</td><td>${d.channel === "voice call" ? "☎ Звонок" : "▤ Чат"}</td><td>${this.escape(d.language)}</td><td>${d.transcript.length}</td><td class="cqa-score">${d.total_score ?? "—"}</td><td><span class="cqa-badge ${d.total_score === null ? "cqa-badge-neutral" : "cqa-badge-success"}">${d.total_score === null ? "Не оценён" : "Оценён"}</span>${d.critical_error ? '<span class="cqa-badge cqa-badge-danger">Грубая ошибка</span>' : ""}</td><td><button class="cqa-link" data-open="${this.escape(d.conversation_id)}">Открыть →</button></td></tr>`).join("") : '<tr><td colspan="9"><div class="cqa-empty">Диалоги не найдены. Измените фильтры или поисковый запрос.</div></td></tr>';
       this.querySelector("#dialog-count").textContent = `Показано: ${dialogs.length} диалог(ов)`;
       this.rows.querySelectorAll("[data-open]").forEach(button => button.addEventListener("click", () => window.location.hash = `evaluation/${encodeURIComponent(button.dataset.open)}`));
     } catch (error) { this.rows.innerHTML = `<tr><td colspan="9"><div class="cqa-empty">${error.message}</div></td></tr>`; }
