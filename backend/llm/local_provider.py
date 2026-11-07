@@ -236,7 +236,7 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
             "max_tokens": max_tokens,
             "response_chars": len(content) if isinstance(content, str) else 0,
             "retry_count": retry_count,
-            "repetition_penalty": body["repetition_penalty"],
-            "repetition_context_size": body["repetition_context_size"],
+            "repetition_penalty": body.get("repetition_penalty", 1.0),
+            "repetition_context_size": body.get("repetition_context_size"),
         },
     )
