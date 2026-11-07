@@ -61,7 +61,7 @@ export LOCAL_LLM_MODEL=mlx-community/Qwen3.5-4B-MLX-4bit
 export LOCAL_LLM_TIMEOUT=300
 export SCORING_MODE=llm
 python -m llm.benchmark.smoke \
-  --dialogs data/DEV.json \
+  --dialogs llm/data/DEV.json \
   --checklist checklists/default.json \
   --model mlx-community/Qwen3.5-4B-MLX-4bit \
   --limit 5 \
@@ -69,6 +69,21 @@ python -m llm.benchmark.smoke \
 ```
 
 The selector chooses RU, KZ and EN chat examples, then adds a RU voice call when available. To choose exact examples, pass `--ids id1,id2,id3`. The smoke test invokes `scoring.evaluate(..., providers="local", samples=1)`, so the existing deterministic evidence validator remains authoritative.
+
+### Optional raw prompt/response capture
+
+To save the exact request and raw model completion for each local-provider call (including truncated JSON and retries), set `LOCAL_LLM_DEBUG_DIR` before starting the smoke test:
+
+```bash
+mkdir -p llm/runs/debug
+chmod 700 llm/runs/debug
+export LOCAL_LLM_DEBUG_DIR=llm/runs/debug
+```
+
+Each call writes a separate JSON file containing the conversation and criterion IDs (when available), attempt number, system/user prompts, JSON schema, raw completion, finish reason, token usage, and HTTP status. Files are created with owner-only permissions. The setting is disabled when the variable is unset or empty.
+
+**Privacy:** these files contain full customer transcripts and model output. Keep the directory local, do not upload it to GitHub, and remove it after diagnosis. To turn capture off in the current terminal, run `unset LOCAL_LLM_DEBUG_DIR`.
+
 
 The local provider sends a strict JSON Schema response-format request. If the server rejects `response_format: json_schema`, the smoke test records the failure; do not silently downgrade to unconstrained text or claim schema-constrained output passed.
 
