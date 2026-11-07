@@ -31,7 +31,8 @@ class CqaEvaluation extends HTMLElement {
       this.render();
     } catch(error) { this.innerHTML = `<div class="cqa-empty">${error.message}</div>`; }
   }
-  t(key) { return UI[this.language]?.[key] || UI.ru[key] || key; }\n  render() {
+  t(key) { return UI[this.language]?.[key] || UI.ru[key] || key; }
+  render() {
     const dialog = this.dialog, evaluation = this.evaluation;
     const total = evaluation?.total_score;
     this.innerHTML = `
