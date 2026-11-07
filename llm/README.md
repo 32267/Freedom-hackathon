@@ -1,42 +1,71 @@
-# llm/ — своя модель-оценщик (задел на будущее)
+# llm/ — локальная модель-оценщик
 
-Сейчас диалоги оценивают Claude и Codex (`backend/llm/`). Здесь готовим почву, чтобы позже обучить **свою модель**
-и подключить её как ещё одного оценщика — на сайте она появится рядом с Claude и Codex («Своя модель»).
+Локальный оценщик использует **MLX-VLM** на Apple Silicon. Текущая задача текстовая: модель получает транскрипт и чек-лист без изображений. MLX-VLM предоставляет OpenAI-совместимый Chat Completions API и JSON Schema structured outputs.
 
-Владелец: Ислам (Claude). Обучающие данные и веса в git не попадают (`llm/data/*`, `llm/models/`, `*.gguf`, `*.safetensors`).
+## Быстрый запуск на Mac
 
-## Структура
+Из корня репозитория:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U mlx-vlm
+bash scripts/start_local_vlm.sh
 ```
-llm/
-├── README.md            ← этот план
-├── export_dataset.py    ← оценки → обучающий JSONL (чат-формат, тот же промпт, что у Claude/Codex)
-├── configs/             ← конфиги дообучения (LoRA), когда выберем базовую модель
-└── data/                ← train.jsonl / train.val.jsonl (не коммитим)
-```
-Подключение уже готово: `backend/llm/local_provider.py` ходит в любой OpenAI-совместимый сервер
-(Ollama, vLLM, LM Studio). Достаточно поднять модель и прописать в `.env`:
-```
-LOCAL_LLM_URL=http://localhost:11434/v1
-LOCAL_LLM_MODEL=cqa-judge
-LLM_PROVIDERS=local | claude_cli | codex_cli      # своя модель первой, Claude/Codex — резерв
-```
-Сайт получает список оценщиков и пресеты («Только Claude», «Только Codex», «Сравнить», «Своя модель»)
-из `backend/llm/registry.py` → `GET /api/llm/providers`.
 
-## План (после хакатона)
-1. **Данные.** Источник меток — люди: решения проверяющих по апелляциям (`source: "appeal"`) и ручной золотой
-   набор (`source: "human"`). Нужно ≥ 300–500 размеченных диалогов на трёх языках; 65 DEV-диалогов мало.
-2. **Экспорт.** `python llm/export_dataset.py --dialogs data/DEV.json --evaluations <оценки>.json`
-   → `llm/data/train.jsonl` + `train.val.jsonl` (разбиение по диалогам).
-3. **Базовая модель** — открытая, с хорошим казахским: кандидаты Qwen (7–14B), Llama 3.x 8B и её казахские
-   дообучения (например, KazLLM от ISSAI), Gemma. Выбирать по точности на золотом наборе, а не по описанию.
-4. **Дообучение** LoRA/QLoRA (Unsloth / Axolotl / LLaMA-Factory) на одной GPU; конфиг — в `configs/`.
-5. **Запуск** через Ollama или vLLM с поддержкой ответа по JSON-схеме.
-6. **Сравнение.** На сайте пресет «Сравнить»: своя модель против Claude на тех же диалогах; метрика —
-   совпадение по критериям с решениями проверяющих. Включаем в прод, только если не хуже.
+Первый запуск скачает `mlx-community/Qwen3.5-4B-MLX-4bit`. Сервер слушает порт `8080`.
 
-## Важно про условия провайдеров
-Условия Anthropic и OpenAI ограничивают использование их ответов для обучения других моделей.
-Поэтому `export_dataset.py` по умолчанию берёт **только оценки, проверенные людьми**. Флаг
-`--include-model-labels` (ответы, где Claude/Codex согласились) — только после того, как команда проверит,
-что это разрешено для вашего случая.
+В другом терминале проверь API:
+
+```bash
+curl http://localhost:8080/v1/models
+```
+
+Настройки в корневом `.env`:
+
+```dotenv
+LOCAL_LLM_URL=http://localhost:8080/v1
+LOCAL_LLM_MODEL=mlx-community/Qwen3.5-4B-MLX-4bit
+LOCAL_LLM_MAX_TOKENS=3072
+LOCAL_LLM_TIMEOUT=600
+LOCAL_LLM_REPETITION_PENALTY=1.0
+LLM_PROVIDERS=local
+```
+
+Если порт или модель отличаются, синхронно поменяй `LOCAL_LLM_URL` и `LOCAL_LLM_MODEL`.
+
+## Smoke test
+
+После запуска сервера и настройки `.env`:
+
+```bash
+python -m llm.benchmark.smoke \\
+  --dialogs llm/data/DEV.json \\
+  --checklist checklists/default.json \\
+  --model mlx-community/Qwen3.5-4B-MLX-4bit \\
+  --ids p1-ru-001 p1-kz-001 p1-en-001 \\
+  --out llm/runs/vlm-smoke.json
+```
+
+Это технический smoke test, а не измерение точности: DEV не является gold set. Проверь `completed`, `failed`, `invalid`, latency и валидность evidence в JSON-отчёте.
+
+## Интеграция
+
+`backend/llm/local_provider.py` уже вызывает `/v1/chat/completions` и передаёт `response_format=json_schema`. Поэтому переход с LM на VLM не требует менять scoring API, схему оценки или промпты. Серверная поддержка JSON Schema не заменяет детерминированную проверку evidence и Pydantic-валидацию в приложении.
+
+## Диагностика
+
+Для сохранения сырых запросов/ответов включи локальный capture:
+
+```dotenv
+LOCAL_LLM_DEBUG_DIR=llm/runs/debug
+```
+
+Файлы могут содержать полный транскрипт. Не отправляй их публично без удаления персональных данных. По умолчанию capture выключен.
+
+## Кандидаты
+
+- Основной: `mlx-community/Qwen3.5-4B-MLX-4bit`.
+- Gemma 4 E2B/E4B остаются альтернативами из `llm/benchmark/models.json`; поддержку конкретного checkpoint проверяй на установленной версии MLX-VLM.
+
+Выбирай модель по gold-набору и отдельно по RU/KZ/EN, а не только по скорости или JSON-validity.
