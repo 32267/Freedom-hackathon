@@ -12,6 +12,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load the repository-level .env even when this module is launched from a
+# different working directory. Existing shell environment variables win.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
 from backend.scoring import evaluate
 from .schemas import dialog_records, read_json
 
