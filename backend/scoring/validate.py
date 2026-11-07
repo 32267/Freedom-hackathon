@@ -68,14 +68,24 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
 
     na_reasons = _i18n(raw.get("na_reason"))
     na_reason = na_reasons["ru"]
+    if answer != "na" and any(na_reasons.values()):
+        problems.append("na_reason должен быть пустым, если answer не na")
+    if ctype == "flag":
+        allowed_flags = {item["id"] for item in criterion.get("flag_types", [])}
+        supplied_flags = raw.get("flags") or []
+        unknown_flags = sorted(set(supplied_flags) - allowed_flags)
+        if unknown_flags:
+            problems.append(f"неизвестные flags: {unknown_flags}")
+        if answer == "no" and supplied_flags:
+            problems.append("answer=no не должен содержать flags")
+        if answer == "yes" and not supplied_flags:
+            problems.append("флаг yes без указания вида нарушения (flags)")
     if answer == "na" and criterion.get("na_channels") and channel and channel not in criterion["na_channels"]:
         problems.append(f"N/A для этого критерия допустим только в канале {', '.join(criterion['na_channels'])}, а это {channel}")
     if answer == "na" and not na_reason:
         problems.append("answer=na без na_reason")
     if answer == "yes" and not evidence:
         problems.append("answer=yes без подтверждающей реплики")
-    if ctype == "flag" and answer == "yes" and not raw.get("flags"):
-        problems.append("флаг yes без указания вида нарушения (flags)")
     is_shortfall = answer == "no" or (ctype == "scale" and answer not in ("na", None)
                                       and str(answer) != str(criterion["scale"]["max"]))
     if ctype != "flag" and is_shortfall and not evidence and checked is None:
