@@ -8,3 +8,11 @@ data/*.db
 *.wav
 .DS_Store
 *.pdf
+
+# llm/: обучающие данные и веса моделей не коммитим
+llm/data/*
+!llm/data/.gitkeep
+llm/models/
+*.gguf
+*.safetensors
+invoke*.json

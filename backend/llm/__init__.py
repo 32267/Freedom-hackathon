@@ -5,6 +5,8 @@
   claude_cli@<папка>    — другой аккаунт Claude Code (папка CLAUDE_CONFIG_DIR, где выполнен `claude` → /login)
   codex_cli             — локальный Codex CLI по подписке ChatGPT
   anthropic             — Claude API по ANTHROPIC_API_KEY (для демо и честной стоимости в README)
+  local                 — своя модель за OpenAI-совместимым сервером (Ollama / vLLM / LM Studio), LOCAL_LLM_URL;
+                          сюда подключится модель, дообученная в папке llm/
 
 LLM_PROVIDERS — уровни через «|», внутри уровня — через запятую:
   "claude_cli,claude_cli@~/.claude-team | codex_cli"  → сначала Claude-аккаунты, Codex — только если Claude не отвечает.
@@ -38,8 +40,9 @@ class LLMResult:
     provider: str = ""
 
 
-def provider_tiers() -> list[list[str]]:
-    raw = os.getenv("LLM_PROVIDERS", "").strip() or os.getenv("LLM_PROVIDER", "").strip() or "anthropic"
+def provider_tiers(raw: str | None = None) -> list[list[str]]:
+    """raw — строка вида "claude_cli | codex_cli"; без неё берётся LLM_PROVIDERS из .env."""
+    raw = (raw or "").strip() or os.getenv("LLM_PROVIDERS", "").strip() or os.getenv("LLM_PROVIDER", "").strip() or "anthropic"
     return [[s.strip() for s in tier.split(",") if s.strip()] for tier in raw.split("|") if tier.strip()]
 
 
@@ -65,7 +68,10 @@ def call_json(system: str, user: str, schema: dict, spec: str | None = None) -> 
     elif kind == "codex_cli":
         from .codex_cli_provider import call_json as impl
         res = impl(system=system, user=user, schema=schema, model=model, effort=effort)
+    elif kind == "local":
+        from .local_provider import call_json as impl
+        res = impl(system=system, user=user, schema=schema, model=model, effort=effort)
     else:
-        raise LLMError(f"Неизвестный провайдер {spec!r} (есть: anthropic, claude_cli[@папка], codex_cli)")
+        raise LLMError(f"Неизвестный провайдер {spec!r} (есть: anthropic, claude_cli[@папка], codex_cli, local)")
     res.provider = spec
     return res

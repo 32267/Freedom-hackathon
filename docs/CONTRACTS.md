@@ -142,6 +142,8 @@ LLM_SAMPLES независимых ответов → по каждому кри
 }
 ```
 После решения `changed` → backend пересчитывает Evaluation; хранит `original_total` и `final_total`.
+При любом решении (confirm или change) результат критерия получает `source: "appeal"` — это проверенная человеком
+метка, из неё `llm/export_dataset.py` соберёт обучающий набор для своей модели.
 
 ## 2. REST API (`/api`)
 
@@ -153,8 +155,9 @@ LLM_SAMPLES независимых ответов → по каждому кри
 | POST | `/api/dialogs/upload` | Загрузка своего транскрипта (JSON формата Dialog) | Codex-2 |
 | GET/POST | `/api/checklists` | Список / создать | Codex-2 (хранение) |
 | GET/PUT | `/api/checklists/{id}` | Получить / сохранить новую версию | Codex-2 |
-| POST | `/api/evaluations` | `{conversation_id, checklist_id}` → Evaluation | Codex-2 → вызывает `scoring.evaluate()` |
-| POST | `/api/evaluations/batch` | `{group_id, checklist_id}` → оценить весь набор (контрольный!) | Codex-2 |
+| GET | `/api/llm/providers` | Оценщики и пресеты для выбора на сайте → `backend.llm.registry.list_providers()` | Codex-2 |
+| POST | `/api/evaluations` | `{conversation_id, checklist_id, providers?, samples?}` → Evaluation | Codex-2 → вызывает `scoring.evaluate()` |
+| POST | `/api/evaluations/batch` | `{group_id, checklist_id, providers?, samples?}` → оценить весь набор (контрольный!) | Codex-2 |
 | GET | `/api/evaluations/{id}` | Evaluation | Codex-2 |
 | POST | `/api/appeals` | `{evaluation_id, criterion_id, comment}` | Codex-2 |
 | GET | `/api/appeals?status=open` | Очередь проверяющего | Codex-2 |
@@ -163,7 +166,11 @@ LLM_SAMPLES независимых ответов → по каждому кри
 ## 3. Python-интерфейс scoring (Ислам → Codex-2)
 ```python
 # backend/scoring/__init__.py
-def evaluate(dialog: dict, checklist: dict) -> dict: ...      # вернёт Evaluation (без id)
+def evaluate(dialog: dict, checklist: dict, providers: str | None = None, samples: int | None = None) -> dict: ...
+#   providers/samples — из выбранного на сайте пресета; None → из .env. Вернёт Evaluation (без id)
+# backend/llm/registry.py
+def list_providers() -> dict: ...   # {"providers": [{id,label,kind,billing,available,reason,configured}],
+                                    #  "presets": [{id,label,providers,samples}], "default": {...}}
 def recompute(evaluation: dict, checklist: dict) -> dict: ... # пересчёт итогов после апелляции, без LLM
 ```
 Пока не готово — `backend/scoring/mock.py` отдаёт фейковый Evaluation той же формы.

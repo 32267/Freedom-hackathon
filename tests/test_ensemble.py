@@ -109,3 +109,21 @@ def test_flags_union():
     s[0]["results"][-1]["flags"], s[1]["results"][-1]["flags"] = ["bypass"], ["insult"]
     ev = ensemble.merge(s, CL)
     assert ev["critical_error"] and ev["critical_flags"] == ["bypass", "insult"]
+
+
+def test_site_override_beats_env(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDERS", "claude_cli | codex_cli")
+    monkeypatch.setenv("LLM_SAMPLES", "3")
+    install(monkeypatch, {"claude_cli": {}, "codex_cli": {}})
+    ev = ensemble.evaluate_ensemble({}, CL, providers="claude_cli, codex_cli", samples=2)
+    assert ev["providers"] == ["claude_cli", "codex_cli"] and ev["samples"] == 2
+
+
+def test_registry_lists_presets_and_availability(monkeypatch):
+    from backend.llm import registry
+    monkeypatch.setenv("LLM_PROVIDERS", "claude_cli | codex_cli")
+    monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
+    out = registry.list_providers()
+    by = {p["id"]: p for p in out["providers"]}
+    assert by["local"]["available"] is False and "LOCAL_LLM_URL" in by["local"]["reason"]
+    assert by["claude_cli"]["configured"] and {p["id"] for p in out["presets"]} >= {"claude", "codex", "compare"}

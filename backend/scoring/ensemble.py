@@ -17,16 +17,18 @@ from .llm_eval import evaluate_llm
 from .math import compute
 
 
-def _samples_wanted() -> int:
+def _samples_wanted(override: int | None = None) -> int:
+    if override:
+        return max(1, int(override))
     try:
         return max(1, int(os.getenv("LLM_SAMPLES", "1")))
     except ValueError:
         return 1
 
 
-def _collect(dialog: dict, checklist: dict, n: int) -> tuple[list[dict], list[str]]:
+def _collect(dialog: dict, checklist: dict, n: int, providers: str | None = None) -> tuple[list[dict], list[str]]:
     samples, errors = [], []
-    for tier in provider_tiers():
+    for tier in provider_tiers(providers):
         alive = [s for s in tier if is_alive(s)]
         attempts = 0
         while alive and len(samples) < n and attempts < n + len(tier):
@@ -96,11 +98,12 @@ def merge(samples: list[dict], checklist: dict) -> dict:
     }
 
 
-def evaluate_ensemble(dialog: dict, checklist: dict) -> dict:
-    samples, errors = _collect(dialog, checklist, _samples_wanted())
-    if not samples:
+def evaluate_ensemble(dialog: dict, checklist: dict, providers: str | None = None, samples: int | None = None) -> dict:
+    """providers/samples — выбор на сайте (пресет из backend.llm.registry); None — из .env."""
+    answers, errors = _collect(dialog, checklist, _samples_wanted(samples), providers)
+    if not answers:
         raise LLMError("Ни один провайдер не ответил: " + "; ".join(errors))
-    ev = merge(samples, checklist)
+    ev = merge(answers, checklist)
     if errors:
         ev["provider_errors"] = errors
     return ev
