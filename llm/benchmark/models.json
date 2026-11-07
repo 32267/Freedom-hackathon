@@ -1,25 +1,57 @@
 {
-  "version": 1,
+  "version": 2,
   "hardware_target": "Apple M5, 16 GB unified memory, macOS 26.6.2",
   "models": [
-    {"id": "qwen3.5-4b-mlx-q4", "provider": "local", "model": "Qwen3.5-4B",
-     "runtime": "MLX via OpenAI-compatible local server", "quantization": "4-bit",
-     "context_length": 4096, "model_env": "LOCAL_LLM_MODEL",
-     "upstream": "https://huggingface.co/Qwen/Qwen3.5-4B",
-     "mlx_distribution": null, "license": "verify upstream model card before download", "verified_installed": false},
-    {"id": "gemma-4-e2b-mlx-q4", "provider": "local", "model": "Gemma 4 E2B",
-     "runtime": "MLX via OpenAI-compatible local server", "quantization": "4-bit",
-     "context_length": 4096, "model_env": "LOCAL_LLM_MODEL",
-     "upstream": "https://ai.google.dev/gemma/docs/core/model_card_4",
-     "mlx_distribution": null, "license": "verify upstream model card before download", "verified_installed": false},
-    {"id": "gemma-4-e4b-mlx-q4", "provider": "local", "model": "Gemma 4 E4B",
-     "runtime": "MLX via OpenAI-compatible local server", "quantization": "4-bit",
-     "context_length": 4096, "model_env": "LOCAL_LLM_MODEL",
-     "upstream": "https://ai.google.dev/gemma/docs/core/model_card_4",
-     "mlx_distribution": null, "license": "verify upstream model card before download", "verified_installed": false},
-    {"id": "claude-reference", "provider": "anthropic", "model": "configured Claude model",
-     "runtime": "Anthropic API (uses existing LLM_MODEL setting)", "quantization": null,
-     "context_length": 4096, "upstream": null, "mlx_distribution": null,
-     "license": "provider terms apply", "verified_installed": false}
+    {
+      "id": "qwen3.5-4b-mlx-q4",
+      "provider": "local",
+      "model": "mlx-community/Qwen3.5-4B-MLX-4bit",
+      "runtime": "mlx-vlm OpenAI-compatible server",
+      "quantization": "4-bit",
+      "context_length": 4096,
+      "model_env": "LOCAL_LLM_MODEL",
+      "upstream": "https://huggingface.co/Qwen/Qwen3.5-4B",
+      "mlx_distribution": "mlx-community/Qwen3.5-4B-MLX-4bit",
+      "license": "Apache-2.0 (verify current model card)",
+      "verified_installed": false
+    },
+    {
+      "id": "gemma-4-e2b-mlx-q4",
+      "provider": "local",
+      "model": "mlx-community/gemma-4-E2B-it-qat-4bit",
+      "runtime": "mlx-vlm OpenAI-compatible server",
+      "quantization": "4-bit QAT",
+      "context_length": 4096,
+      "model_env": "LOCAL_LLM_MODEL",
+      "upstream": "https://ai.google.dev/gemma/docs/core/model_card_4",
+      "mlx_distribution": "mlx-community/gemma-4-E2B-it-qat-4bit",
+      "license": "Gemma Terms of Use (review before download)",
+      "verified_installed": false
+    },
+    {
+      "id": "gemma-4-e4b-mlx-q4",
+      "provider": "local",
+      "model": "mlx-community/gemma-4-E4B-it-qat-4bit",
+      "runtime": "mlx-vlm OpenAI-compatible server",
+      "quantization": "4-bit QAT",
+      "context_length": 4096,
+      "model_env": "LOCAL_LLM_MODEL",
+      "upstream": "https://ai.google.dev/gemma/docs/core/model_card_4",
+      "mlx_distribution": "mlx-community/gemma-4-E4B-it-qat-4bit",
+      "license": "Gemma Terms of Use (review before download)",
+      "verified_installed": false
+    },
+    {
+      "id": "claude-reference",
+      "provider": "anthropic",
+      "model": "configured Claude model",
+      "runtime": "Anthropic API (uses existing LLM_MODEL setting)",
+      "quantization": null,
+      "context_length": 4096,
+      "upstream": null,
+      "mlx_distribution": null,
+      "license": "provider terms apply",
+      "verified_installed": false
+    }
   ]
 }

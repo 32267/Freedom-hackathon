@@ -64,4 +64,4 @@
 - [ ] **L1** P0 Калибровка промпта на DEV: примеры для ступеней «Консультации» и «Управления диалогом» (самые частые расхождения)
 - [ ] **L2** P0 Спорные правила из `docs/SCORING_RULES.md §4` → в чек-лист после решения команды; перегнать DEV
 - [ ] **L3** P0 Финал: прогон 10 примеров жюри сильной моделью (`LLM_MODEL=claude-opus-5-5`, 3 ответа), `tools/jury_kit.py export`
-- [~] **L4** P1 Бенчмарк локальных моделей (`llm/benchmark/`), Phase 1 в PR #8; Phase 2 — локальный smoke test
+- [~] **L4** P1 Бенчмарк локальных моделей (`llm/benchmark/`), Phase 1 merged in PR #11; Phase 2 — M5 MLX setup + local smoke test (`codex/benchmark-phase2`)
