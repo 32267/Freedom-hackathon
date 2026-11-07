@@ -1,7 +1,8 @@
 # AGENTS.md — правила для всех агентов (Claude Code + Codex)
 
 Этот файл читают **все** агенты. Claude Code подхватывает его через `CLAUDE.md`, Codex — напрямую.
-Перед любой задачей прочитай: этот файл → `docs/CONTRACTS.md` → свою секцию в `docs/TASKS.md`.
+Перед любой задачей прочитай: этот файл → `docs/CONTRACTS.md` → свою задачу по ID в `docs/TASKS.md`.
+В `frontend/` и `backend/` есть свои `AGENTS.md` с локальными правилами. Текст гайда — `docs/GUIDE.md` (PDF не читай).
 
 ## Проект
 CQA (Conversation Quality Analytics) — хакатон Freedom Broker, 24 часа.
@@ -20,7 +21,7 @@ CQA (Conversation Quality Analytics) — хакатон Freedom Broker, 24 ча�
 ## Стек (зафиксирован, не менять без согласования в TASKS.md)
 - Backend: Python 3.11+, FastAPI, SQLite (`data/cqa.db`), pydantic.
 - LLM: провайдер через env (`LLM_PROVIDER=openai|anthropic`), код в `backend/llm/`.
-- Frontend: `frontend/` — vanilla ES modules, `fetch` к `/api/*`, отдаётся тем же FastAPI.
+- Frontend: `frontend/` — vanilla Web Components (`<cqa-*>`), `fetch` только в `frontend/api.js`, отдаётся тем же FastAPI.
 - Данные организаторов идут **только через backend** (CORS).
 
 ## Владение кодом — главное правило против конфликтов
@@ -29,11 +30,11 @@ CQA (Conversation Quality Analytics) — хакатон Freedom Broker, 24 ча�
 
 | Владелец | Агент | Папки |
 |---|---|---|
-| Ислам | Claude Code | `backend/scoring/`, `backend/llm/`, `checklists/`, `docs/CONTRACTS.md` |
+| Ислам | Claude Code | `backend/scoring/`, `backend/llm/`, `checklists/`, `fixtures/`, `docs/CONTRACTS.md` |
 | Codex-1 | Codex | `frontend/` |
-| Codex-2 | Codex | `backend/api/`, `backend/db/`, `backend/main.py`, `scripts/`, `README.md` |
+| Codex-2 | Codex | `backend/api/`, `backend/db/`, `backend/main.py`, `scripts/`, `README.md` раздел «Запуск» |
 
-Общие файлы (`AGENTS.md`, `docs/TASKS.md`, `requirements.txt`) — правка только маленькими отдельными коммитами.
+Общие файлы (`AGENTS.md`, `README.md` разделы 1–6, `docs/TASKS.md`, `requirements.txt`, `.github/`) — правка только маленькими отдельными коммитами.
 
 ## Контракты
 `docs/CONTRACTS.md` — единственный источник правды о форматах JSON и эндпоинтах.
@@ -54,7 +55,14 @@ pip install -r requirements.txt
 python scripts/fetch_dataset.py DEV        # → data/DEV.json (URL берётся из .env)
 uvicorn backend.main:app --reload --port 8000   # UI: http://localhost:8000
 pytest -q
+# UI без backend: открыть frontend/index.html?mock=1 через любой статический сервер
 ```
+
+## Как агенту брать задачу
+1. Взять **одну** задачу по ID из `docs/TASKS.md`, поставить `[~] (ветка)`.
+2. Ветка от свежего `main`. Если задача требует чужого кода, которого ещё нет, — работай на моке, не жди.
+3. Не уверен в контракте — не угадывай: допиши вопрос в «Запросы» в TASKS.md и сделай остальное.
+4. PR с шаблоном, в заголовке ID: `F3: dialog card evidence links`.
 
 ## Definition of Done для задачи
 1. Работает локально по командам выше. 2. Соответствует `docs/CONTRACTS.md`.

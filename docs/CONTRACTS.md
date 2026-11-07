@@ -20,6 +20,10 @@
 ```
 Ссылка на реплику = индекс в `transcript` (`msg_index`, с 0). Якорь в UI: `#msg-<index>`.
 
+Backend при отдаче добавляет **производные** поля (исходные не меняются):
+- `transcript[i].msg_index` — индекс;
+- `transcript[i].offset_sec` — только у `voice call`: секунды от первой реплики (для перемотки `<audio>`).
+
 ### Checklist
 ```json
 {
@@ -27,6 +31,7 @@
   "name": "Базовый чек-лист",
   "version": 1,
   "rounding": "half_up_1",            // правило округления из PDF
+  "critical_policy": "flag",          // "flag" — только отметка | "zero_total" — итог = 0 (взять из PDF)
   "sections": [{"id": "greeting", "name": "Приветствие"}],
   "criteria": [
     {
@@ -46,6 +51,18 @@
 ```
 Сохранение меняет `version` (+1); старые оценки ссылаются на свою версию.
 
+### Формула итога (реализует `backend/scoring/math.py`, правила уточнить по PDF)
+```
+norm_i      = binary: yes→1, no→0 | scale: (value - min) / (max - min)
+applicable  = критерии с answer != "na"
+eff_w_i     = weight_i / Σ weight_j (j ∈ applicable) × 100
+weighted_i  = norm_i × eff_w_i
+total       = round(Σ weighted_i)             # по checklist.rounding
+section_s   = та же формула внутри секции (0..100)
+critical    = есть is_critical с answer "no" (или ниже порога шкалы) → critical_error = true
+```
+Все критерии N/A → `total = null`, в UI «Не применимо».
+
 ### Evaluation
 ```json
 {
@@ -56,6 +73,8 @@
   "status": "done",                   // queued | running | done | error
   "model": "gpt-4.1-mini",
   "cost_usd": 0.004,
+  "tokens": {"input": 3200, "output": 900},
+  "cache_key": "sha256(dialog)+checklist_id+version",   // повторная оценка → из кэша
   "total_score": 87.5,                // 0..100 после перераспределения N/A
   "critical_error": false,
   "section_scores": [{"section_id": "greeting", "score": 100}],
@@ -69,7 +88,9 @@
       "effective_weight": 12.5,       // после перераспределения N/A
       "weighted_score": 12.5,
       "explanation": "Оператор поздоровался в первой реплике...",
-      "evidence": [{"msg_index": 0, "quote": "Здравствуйте!"}],
+      "evidence": [{"msg_index": 0, "quote": "Здравствуйте!"}],   // quote обязана быть подстрокой реплики
+      "source": "llm",                // "llm" | "rule" (посчитано кодом) | "appeal" (изменено проверяющим)
+      "validated": true,              // прошло проверку доказательств
       "checked_range": null,          // если действие пропущено: {"from": 0, "to": 12}
       "na_reason": null
     }
@@ -118,8 +139,17 @@ def recompute(evaluation: dict, checklist: dict) -> dict: ... # пересчёт
 ```
 Пока не готово — `backend/scoring/mock.py` отдаёт фейковый Evaluation той же формы.
 
+Батч (`POST /api/evaluations/batch`) возвращает `{"job_id"}`; прогресс — `GET /api/jobs/{job_id}` →
+`{"total": 65, "done": 40, "failed": 1, "status": "running"}`. Параллельность 4–8, ретраи, кэш.
+
 ## 4. UI-экраны (Codex-1)
-`frontend/` — каждый экран отдельный модуль, монтируется в `<div id="...">`:
+`frontend/` — каждый экран — **Web Component** (vanilla `customElements.define`), чтобы встраивать по одному в Dynamics 365:
+- имя тега `cqa-<экран>`, атрибуты: `api-base` (по умолчанию `/api`), id сущности (`conversation-id`, `evaluation-id`);
+- общение между компонентами — `CustomEvent` (`cqa:open-dialog`, `cqa:evaluated`, `cqa:appeal-decided`), без глобальных переменных;
+- стили — внутри компонента (Shadow DOM или префикс `cqa-`);
+- `frontend/api.js` — единственное место с `fetch`; при `?mock=1` отдаёт данные из `fixtures/`.
+
+Экраны:
 1. `checklist-editor` — критерии, вес, тип, шкала, N/A, секции; сохранить версию.
 2. `dialog-list` — фильтры язык/канал, балл, кнопка «Оценить всё».
 3. `dialog-card` — транскрипт (якоря `#msg-N`, роли визуально разные), аудиоплеер для звонков,

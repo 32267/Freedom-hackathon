@@ -1,0 +1,11 @@
+{
+  "conversation_id": "fixture-call-en",
+  "channel": "voice call", "language": "EN", "audio_url": "https://example.com/fixture.mp3", "dataset_group_id": "FIXTURE",
+  "transcript": [
+    {"timestamp": "2026-11-01T10:00:00+05:00", "speaker": "operator", "text": "Good morning, this is Daniyar from support. How can I help?"},
+    {"timestamp": "2026-11-01T10:00:06+05:00", "speaker": "client", "text": "I want to know the commission for US stocks."},
+    {"timestamp": "2026-11-01T10:00:15+05:00", "speaker": "operator", "text": "Which tariff plan are you on?"},
+    {"timestamp": "2026-11-01T10:00:20+05:00", "speaker": "client", "text": "The standard one."},
+    {"timestamp": "2026-11-01T10:00:31+05:00", "speaker": "operator", "text": "On the standard plan the commission is shown in your tariff section of the app."}
+  ]
+}

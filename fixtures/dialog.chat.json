@@ -1,0 +1,14 @@
+{
+  "conversation_id": "fixture-chat-ru",
+  "channel": "agent chat", "language": "RU", "audio_url": null, "dataset_group_id": "FIXTURE",
+  "transcript": [
+    {"timestamp": "00:00", "speaker": "bot", "text": "Здравствуйте! Я виртуальный помощник. Опишите вопрос."},
+    {"timestamp": "00:05", "speaker": "client", "text": "Не могу вывести деньги с брокерского счёта."},
+    {"timestamp": "00:06", "speaker": "system", "text": "Диалог передан оператору."},
+    {"timestamp": "00:20", "speaker": "operator", "text": "Здравствуйте, меня зовут Анна. Подскажите, какую ошибку вы видите?"},
+    {"timestamp": "00:41", "speaker": "client", "text": "Пишет, что недостаточно средств, хотя деньги есть."},
+    {"timestamp": "01:10", "speaker": "operator", "text": "Часть средств заблокирована под незакрытые сделки. Вывести можно свободный остаток."},
+    {"timestamp": "01:30", "speaker": "client", "text": "Понял, спасибо."},
+    {"timestamp": "01:35", "speaker": "operator", "text": "Обращайтесь! Хорошего дня."}
+  ]
+}

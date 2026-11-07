@@ -1,0 +1,14 @@
+name: ci
+on: [pull_request, push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: JSON fixtures and checklists are valid
+        run: python -c "import glob,json; [json.load(open(f)) for f in glob.glob('fixtures/*.json')+glob.glob('checklists/*.json')]"
+      - name: Tests
+        run: pytest -q || [ $? -eq 5 ]   # 5 = тестов пока нет
