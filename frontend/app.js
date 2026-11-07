@@ -1,54 +1,81 @@
 import "./components/cqa-dashboard.js";
 import "./components/cqa-dialog-list.js";
 import "./components/cqa-evaluation.js";
+import "./components/cqa-review-queue.js";
+import "./components/cqa-checklist-editor.js";
 import { api } from "./api.js";
+import { LANGS } from "./ui.js";
+
+const ROUTES = {
+  dashboard: { title: "Обзор", icon: "▦", tag: "cqa-dashboard" },
+  conversations: { title: "Диалоги", icon: "☰", tag: "cqa-dialog-list" },
+  evaluation: { title: "Оценка", icon: "◉", tag: "cqa-evaluation" },
+  appeals: { title: "Апелляции", icon: "⚖", tag: "cqa-review-queue" },
+  checklist: { title: "Чек-лист", icon: "✓", tag: "cqa-checklist-editor" },
+};
 
 class CqaApp extends HTMLElement {
   connectedCallback() {
     this.innerHTML = `
       <div class="cqa-shell">
         <aside class="cqa-sidebar">
-          <div class="cqa-brand"><span class="cqa-brand-mark">✳</span><span class="cqa-brand-name">CQA STUDIO<small>QUALITY ANALYTICS</small></span></div>
+          <div class="cqa-brand"><span class="cqa-brand-mark">F</span>
+            <span class="cqa-brand-name">FREEDOM BROKER<small>КОНТРОЛЬ КАЧЕСТВА</small></span></div>
           <div class="cqa-nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-          <nav class="cqa-nav">
-            <a href="#dashboard" data-route="dashboard"><span class="cqa-nav-icon">▦</span><span class="cqa-nav-text">Обзор</span></a>
-            <a href="#conversations" data-route="conversations"><span class="cqa-nav-icon">▤</span><span class="cqa-nav-text">Диалоги</span></a>
-            <a href="#evaluation" data-route="evaluation"><span class="cqa-nav-icon">◉</span><span class="cqa-nav-text">Оценка</span></a>
+          <nav class="cqa-nav">${Object.entries(ROUTES).map(([key, r]) => `
+            <a href="#${key}" data-route="${key}"><span class="cqa-nav-icon">${r.icon}</span><span>${r.title}</span>
+              ${key === "appeals" ? '<span class="cqa-nav-count" id="appeal-count" hidden></span>' : ""}</a>`).join("")}
           </nav>
-          <div class="cqa-sidebar-foot"><span class="cqa-status-dot"></span><span class="cqa-muted" style="font-size:10px">Интерфейс готов</span><p>LLM подключается отдельно</p></div>
+          <div class="cqa-sidebar-foot"><span class="cqa-status-dot"></span>Оценка чатов и звонков<br>RU · KZ · EN · чек-лист Freedom Broker</div>
         </aside>
         <main class="cqa-main">
-          <header class="cqa-topbar"><div class="cqa-crumb">Рабочее пространство / <strong id="cqa-current-page">Обзор</strong></div><div class="cqa-top-actions"><span class="cqa-mode" id="cqa-mode"></span><span class="cqa-avatar">QA</span></div></header>
-          <section class="cqa-content" id="cqa-view"></section>
+          <header class="cqa-topbar">
+            <div class="cqa-crumb">Контроль качества / <strong id="crumb">Обзор</strong></div>
+            <div class="cqa-top-actions">
+              <span class="cqa-muted" style="font-size:12px">Язык обоснований</span>
+              <div class="cqa-lang" id="lang">${LANGS.map(l => `<button data-lang="${l}">${l.toUpperCase()}</button>`).join("")}</div>
+              <span class="cqa-mode ${api.isMock() ? "demo" : ""}">${api.isMock() ? "ДЕМО-ДАННЫЕ" : "LIVE · API"}</span>
+            </div>
+          </header>
+          <section class="cqa-content" id="view"></section>
         </main>
       </div>`;
-    this.querySelector("#cqa-mode").textContent = api.isMock() ? "ДЕМО-ДАННЫЕ" : "API";
-    this.addEventListener("cqa:open-dialog", event => {
-      const id = event.detail?.conversationId;
-      if (id) { window.location.hash = `evaluation/${encodeURIComponent(id)}`; }
-    });
-    this.addEventListener("cqa:run-evaluation", event => {
-      const id = event.detail?.conversationId;
-      if (id) window.location.hash = `evaluation/${encodeURIComponent(id)}`;
-    });
-    window.addEventListener("hashchange", () => this.renderRoute());
-    this.renderRoute();
+    this.querySelectorAll("[data-lang]").forEach(b => b.addEventListener("click", () => this.setLang(b.dataset.lang)));
+    this.setLang(this.getAttribute("lang") || "ru", false);
+    this.addEventListener("cqa:open-dialog", e => { window.location.hash = `evaluation/${encodeURIComponent(e.detail.conversationId)}`; });
+    this.addEventListener("cqa:appeals-changed", () => this.refreshAppealCount());
+    this.addEventListener("cqa:batch-done", () => this.refreshAppealCount());
+    window.addEventListener("hashchange", () => this.route());
+    this.route();
+    this.refreshAppealCount();
   }
 
-  renderRoute() {
-    const [route, id] = window.location.hash.replace(/^#/, "").split("/");
-    const view = this.querySelector("#cqa-view");
-    const active = route || "dashboard";
-    const titles = { dashboard: "Обзор", conversations: "Диалоги", evaluation: "Оценка" };
-    this.querySelector("#cqa-current-page").textContent = titles[active] || titles.dashboard;
-    this.querySelectorAll(".cqa-nav a").forEach(link => link.classList.toggle("active", link.dataset.route === active));
-    if (active === "conversations") view.innerHTML = "<cqa-dialog-list></cqa-dialog-list>";
-    else if (active === "evaluation") {
-      const component = document.createElement("cqa-evaluation");
-      if (id) { try { component.setAttribute("conversation-id", decodeURIComponent(id)); } catch { component.setAttribute("conversation-id", id); } }
-      view.replaceChildren(component);
+  setLang(lang, notify = true) {
+    this.setAttribute("lang", lang);
+    this.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("active", b.dataset.lang === lang));
+    if (notify) this.querySelector("#view").firstElementChild?.dispatchEvent(new CustomEvent("cqa:lang", { detail: { lang } }));
+  }
+
+  async refreshAppealCount() {
+    try {
+      const n = (await api.getStats()).open_appeals;
+      const badge = this.querySelector("#appeal-count");
+      badge.hidden = !n;
+      badge.textContent = n;
+    } catch { /* сводка необязательна */ }
+  }
+
+  route() {
+    const [key, id] = window.location.hash.replace(/^#/, "").split("/");
+    const name = ROUTES[key] ? key : "dashboard";
+    this.querySelector("#crumb").textContent = ROUTES[name].title;
+    this.querySelectorAll(".cqa-nav a").forEach(a => a.classList.toggle("active", a.dataset.route === name));
+    const view = document.createElement(ROUTES[name].tag);
+    if (id) {
+      try { view.setAttribute("conversation-id", decodeURIComponent(id)); } catch { view.setAttribute("conversation-id", id); }
     }
-    else view.innerHTML = "<cqa-dashboard></cqa-dashboard>";
+    this.querySelector("#view").replaceChildren(view);
+    window.scrollTo(0, 0);
   }
 }
 customElements.define("cqa-app", CqaApp);

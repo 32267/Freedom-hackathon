@@ -115,3 +115,10 @@ def test_appeal_decision_when_checklist_missing_is_404(client):
     db.save_evaluation(ev)
     r = client.post(f"/api/appeals/{ap['id']}/decision", json={"action": "confirm", "reason": "ok"})
     assert r.status_code == 404 and "Чек-лист" in r.json()["error"]
+
+
+def test_stats(client):
+    client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"})
+    s = client.get("/api/stats").json()
+    assert s["dialogs"] == 2 and s["evaluated"] == 1 and s["open_appeals"] == 0
+    assert len(s["criteria"]) == 8 and s["groups"][0]["count"] == 1

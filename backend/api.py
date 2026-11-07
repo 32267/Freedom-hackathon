@@ -40,6 +40,44 @@ def health():
             "scoring_mode": os.getenv("SCORING_MODE", "llm")}
 
 
+@router.get("/stats")
+def stats():
+    """Сводка для обзора: средние по языку/каналу, частота провалов по критериям, очередь апелляций."""
+    dialogs = {d["conversation_id"]: d for d in db.list_dialogs()}
+    latest = db.latest_evaluations()
+    groups: dict[str, list[float]] = {}
+    crit: dict[str, dict] = {}
+    flags: dict[str, int] = {}
+    for cid, ev in latest.items():
+        d = dialogs.get(cid)
+        if not d:
+            continue
+        if ev.get("total_score") is not None:
+            groups.setdefault(f'{d.get("channel")}|{d.get("language")}', []).append(ev["total_score"])
+        for f in ev.get("critical_flags", []):
+            flags[f] = flags.get(f, 0) + 1
+        for r in ev.get("results", []):
+            c = crit.setdefault(r["criterion_id"], {"criterion_id": r["criterion_id"], "total": 0, "lost": 0, "na": 0, "review": 0})
+            c["total"] += 1
+            if r["answer"] == "na":
+                c["na"] += 1
+            elif r.get("max_score") and r.get("raw_score") is not None and r["raw_score"] < r["max_score"]:
+                c["lost"] += 1
+            if r.get("needs_review"):
+                c["review"] += 1
+    scores = [ev["total_score"] for cid, ev in latest.items() if cid in dialogs and ev.get("total_score") is not None]
+    return {
+        "dialogs": len(dialogs), "evaluated": len([c for c in latest if c in dialogs]),
+        "average": round(sum(scores) / len(scores), 2) if scores else None,
+        "needs_review": sum(1 for c, ev in latest.items() if c in dialogs and ev.get("needs_review")),
+        "critical": sum(1 for c, ev in latest.items() if c in dialogs and ev.get("critical_error")),
+        "open_appeals": len(db.list_appeals("open")),
+        "groups": [{"channel": k.split("|")[0], "language": k.split("|")[1], "count": len(v), "average": round(sum(v) / len(v), 2)}
+                   for k, v in sorted(groups.items())],
+        "criteria": list(crit.values()), "critical_flags": flags,
+    }
+
+
 @router.get("/llm/providers")
 def providers():
     return list_providers()

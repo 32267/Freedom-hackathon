@@ -53,6 +53,15 @@ async def lifespan(_app):
 
 app = FastAPI(title="CQA — Conversation Quality Analytics", lifespan=lifespan)
 app.add_exception_handler(HTTPException, error_handler)
+
+
+@app.middleware("http")
+async def no_stale_frontend(request, call_next):
+    """Статика — с ревалидацией (ETag), чтобы после обновления кода браузер не держал старые модули."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 app.include_router(router)
 for name in ("frontend", "fixtures", "checklists"):
     app.mount(f"/{name}", StaticFiles(directory=ROOT / name, html=True), name=name)
