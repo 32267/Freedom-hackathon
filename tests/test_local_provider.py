@@ -22,6 +22,7 @@ def test_not_configured(monkeypatch):
 
 
 def test_calls_openai_compatible_server(monkeypatch):
+    monkeypatch.delenv("LOCAL_LLM_MAX_TOKENS", raising=False)
     monkeypatch.setenv("LOCAL_LLM_URL", "http://localhost:11434/v1/")
     monkeypatch.setenv("LOCAL_LLM_MODEL", "cqa-judge")
     seen = {}
