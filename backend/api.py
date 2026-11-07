@@ -75,7 +75,17 @@ def stats():
         "groups": [{"channel": k.split("|")[0], "language": k.split("|")[1], "count": len(v), "average": round(sum(v) / len(v), 2)}
                    for k, v in sorted(groups.items())],
         "criteria": list(crit.values()), "critical_flags": flags,
+        "critical_list": [_critical_item(cid, ev) for cid, ev in latest.items() if cid in dialogs and ev.get("critical_error")],
     }
+
+
+def _critical_item(cid: str, ev: dict) -> dict:
+    """Диалог с грубой ошибкой: вид нарушения, обоснование и цитата — для списка на «Обзоре»."""
+    flag = next((r for r in ev.get("results", []) if r.get("flags") or r["criterion_id"] == "gross_errors"), {})
+    ev0 = (flag.get("evidence") or [{}])[0]
+    return {"conversation_id": cid, "total_score": ev.get("total_score"), "flags": ev.get("critical_flags", []),
+            "explanation": flag.get("explanation"), "explanations": flag.get("explanations"),
+            "quote": ev0.get("quote"), "msg_index": ev0.get("msg_index")}
 
 
 @router.get("/llm/providers")

@@ -43,6 +43,10 @@ class CqaDialogList extends HTMLElement {
     document.querySelector("cqa-app")?.addEventListener("cqa:batch-done", this.onBatchDone);
 
     try {
+      const preset = sessionStorage.getItem("cqa-status-filter");
+      if (preset) { this.querySelector("#status").value = preset; sessionStorage.removeItem("cqa-status-filter"); }
+    } catch { /* хранилище недоступно */ }
+    try {
       const p = await api.getProviders();
       this.querySelector("#preset").innerHTML = p.presets.map(x => `<option value="${esc(x.id)}">${esc(x.label)}</option>`).join("");
       this.presets = p.presets;

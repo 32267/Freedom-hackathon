@@ -1,8 +1,9 @@
 import { api } from "../api.js";
-import { CHANNEL, FLAG_LABEL, critTitle, emit, esc, fmtScore, scoreClass } from "../ui.js";
+import { CHANNEL, FLAG_LABEL, critTitle, currentLang, emit, esc, fmtScore, scoreClass } from "../ui.js";
 
 class CqaDashboard extends HTMLElement {
   async connectedCallback() {
+    this.addEventListener("cqa:lang", () => this.render());
     this.innerHTML = `
       <div class="cqa-page-head"><div><p class="cqa-eyebrow">FREEDOM BROKER · АНАЛИТИКА КАЧЕСТВА</p>
         <h1 class="cqa-page-title">Обзор</h1><p class="cqa-subtitle">Качество работы операторов в чатах и звонках по чек-листу Freedom Broker.</p></div>
@@ -50,6 +51,18 @@ class CqaDashboard extends HTMLElement {
             `<span class="cqa-badge cqa-badge-danger">${esc(FLAG_LABEL[f] || f)}: ${n}</span>`).join(" ")}` : ""}
         </section>
       </div>
+      <section class="cqa-card cqa-panel" style="margin-top:16px">
+        <div class="cqa-panel-head"><div><h2 class="cqa-panel-title">⚠ Грубые ошибки (${(stats.critical_list || []).length})</h2>
+          <div class="cqa-panel-sub">Оскорбление, услуга в обход компании, раскрытие конфиденциальной информации — с обоснованием и цитатой</div></div>
+          <a class="cqa-btn" href="#conversations" data-critical-filter>Все в списке →</a></div>
+        ${(stats.critical_list || []).map(c => `<div class="cqa-appeal-box" style="margin-top:8px">
+          <div class="cqa-row"><button class="cqa-link cqa-id" data-open="${esc(c.conversation_id)}">${esc(c.conversation_id)}</button>
+            ${c.flags.map(f => `<span class="cqa-badge cqa-badge-danger">${esc(FLAG_LABEL[f] || f)}</span>`).join("")}
+            <span class="cqa-grow"></span><span class="cqa-score ${scoreClass(c.total_score)}">${fmtScore(c.total_score)}</span></div>
+          ${c.quote ? `<div class="cqa-quote" style="margin:8px 0 6px"><small>Реплика #${c.msg_index}</small>«${esc(c.quote)}»</div>` : ""}
+          <div style="font-size:12.8px;line-height:1.5">${esc(c.explanations?.[currentLang()] || c.explanation || "")}</div></div>`).join("")
+          || '<div class="cqa-empty">Грубых ошибок не найдено</div>'}
+      </section>
       <section class="cqa-card" style="margin-top:16px">
         <div class="cqa-panel cqa-panel-head" style="margin:0"><div><h2 class="cqa-panel-title">Диалоги с самым низким баллом</h2>
           <div class="cqa-panel-sub">Начните разбор с них</div></div><a class="cqa-btn" href="#conversations">Все диалоги →</a></div>
@@ -61,6 +74,7 @@ class CqaDashboard extends HTMLElement {
             || '<tr><td colspan="5"><div class="cqa-empty">Пока нет оценок</div></td></tr>'}</tbody></table></div>
       </section>`;
     this.querySelectorAll("[data-open]").forEach(r => r.addEventListener("click", () => emit(this, "open-dialog", { conversationId: r.dataset.open })));
+    this.querySelector("[data-critical-filter]")?.addEventListener("click", () => { try { sessionStorage.setItem("cqa-status-filter", "critical"); } catch { /* недоступно */ } });
   }
 }
 customElements.define("cqa-dashboard", CqaDashboard);

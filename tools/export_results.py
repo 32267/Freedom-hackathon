@@ -27,18 +27,33 @@ CODES = {"contact": "contact", "needs": "discovery", "identification": "identifi
          "empathy": "empathy", "dialog_management": "dialogue", "closing": "closure", "gross_errors": "critical"}
 ORDER = ["contact", "discovery", "identification", "consultation", "empathy", "dialogue", "closure", "critical"]
 ALLOWED = {  # допустимые значения value по таблице приложения
-    "contact": {True, False}, "discovery": {True, False, None}, "identification": {True, False, None},
+    # contact: в таблице только true/false, но жюри разрешило N/A для звонка, если приветствие не попало в запись
+    "contact": {True, False, None}, "discovery": {True, False, None}, "identification": {True, False, None},
     "consultation": {0, 5, 10, 15, 20, None}, "empathy": {True, False}, "dialogue": {0, 4, 7, 10},
     "closure": {True, False, None}, "critical": {True, False},
 }
 
 
-def _value(answer, code):
+def _code(cid: str) -> str:
+    """Наш id → код организаторов; новый критерий (после замены на контроле) выгружается со своим id."""
+    return CODES.get(cid, cid)
+
+
+def _value(answer, criterion: dict):
     if answer == "na":
         return None
-    if code in ("consultation", "dialogue"):
+    if criterion.get("answer_type") == "scale":
         return int(float(answer))
     return answer == "yes"
+
+
+def _allowed(criterion: dict) -> set:
+    """Допустимые value для критерия из чек-листа (для нового критерия — по его типу и ступеням)."""
+    code = _code(criterion["id"])
+    if code in ALLOWED:
+        return ALLOWED[code]
+    vals = {s["value"] for s in criterion["scale"]["steps"]} if criterion.get("answer_type") == "scale" else {True, False}
+    return vals | ({None} if criterion.get("na_allowed") else set())
 
 
 def _turns(r: dict, n_turns: int) -> list[int]:
@@ -49,29 +64,31 @@ def _turns(r: dict, n_turns: int) -> list[int]:
     return sorted(t for t in turns if 1 <= t <= n_turns)
 
 
-def record(dialog: dict, ev: dict | None) -> dict:
+def record(dialog: dict, ev: dict | None, checklist: dict | None = None) -> dict:
+    """checklist — версия, по которой сделана оценка: из неё порядок и типы критериев (важно после замены критерия)."""
     cid = dialog["conversation_id"]
     if not ev or ev.get("status") not in (None, "done"):
         return {"conversation_id": cid, "status": "error", "criteria": [], "score": None,
                 "error": "Диалог не оценён: нет результата модели."}
-    by_code = {}
-    for r in ev["results"]:
-        code = CODES.get(r["criterion_id"])
-        if code:
-            by_code[code] = {"criterion_id": code, "value": _value(r["answer"], code),
-                             "rationale": (r.get("explanation") or r.get("na_reason") or "").strip(),
-                             "evidence_turns": _turns(r, len(dialog["transcript"]))}
-    missing = [c for c in ORDER if c not in by_code]
-    if missing:
-        return {"conversation_id": cid, "status": "error", "criteria": [], "score": None,
-                "error": f"Оценка без критериев {missing} (чек-лист изменён) — переоцените по действующему чек-листу."}
+    if checklist is None:
+        checklist = db.get_checklist(ev.get("checklist_id", "default"), ev.get("checklist_version")) or {"criteria": []}
+    by_id = {r["criterion_id"]: r for r in ev["results"]}
+    crits = [c for c in checklist["criteria"] if c["id"] in by_id] or \
+        [{"id": cid_, "answer_type": "scale" if CODES.get(cid_) in ("consultation", "dialogue") else "binary"} for cid_ in by_id]
+    criteria = [{"criterion_id": _code(c["id"]), "value": _value(by_id[c["id"]]["answer"], c),
+                 "rationale": (by_id[c["id"]].get("explanation") or by_id[c["id"]].get("na_reason") or "").strip(),
+                 "evidence_turns": _turns(by_id[c["id"]], len(dialog["transcript"]))} for c in crits]
+    flags = [x["value"] for x, c in zip(criteria, crits) if c.get("answer_type") == "flag" or x["criterion_id"] == "critical"]
     total = ev.get("total_score")
-    return {"conversation_id": cid, "status": "ok", "criteria": [by_code[c] for c in ORDER],
+    return {"conversation_id": cid, "status": "ok", "criteria": criteria,
             "score": {"final_score": None if total is None else round(float(total), 2),
-                      "critical_flag": bool(by_code["critical"]["value"])}}
+                      "critical_flag": any(bool(v) for v in flags)}}
 
 
-def validate(doc: dict, expected_ids: list[str], exact: int | None) -> list[str]:
+def validate(doc: dict, expected_ids: list[str], exact: int | None, checklist: dict | None = None) -> list[str]:
+    """checklist — действующий чек-лист: 8 критериев в его порядке (после замены — с новым кодом на месте старого)."""
+    expected_codes = [_code(c["id"]) for c in checklist["criteria"]] if checklist else ORDER
+    allowed = {_code(c["id"]): _allowed(c) for c in checklist["criteria"]} if checklist else ALLOWED
     errs = []
     ids = [r["conversation_id"] for r in doc["results"]]
     if len(ids) != len(set(ids)):
@@ -87,21 +104,22 @@ def validate(doc: dict, expected_ids: list[str], exact: int | None) -> list[str]
                 errs.append(f"{cid}: у ошибки должны быть пустые criteria, score=null и причина")
             continue
         codes = [c["criterion_id"] for c in r["criteria"]]
-        if codes != ORDER:
-            errs.append(f"{cid}: нужны все 8 критериев ровно по одному разу")
+        if codes != expected_codes or len(codes) != 8:
+            errs.append(f"{cid}: нужны все 8 критериев действующего чек-листа ровно по одному разу (есть {codes})")
         for c in r["criteria"]:
             v, code = c["value"], c["criterion_id"]
-            scale = code in ("consultation", "dialogue")
+            ok_vals = allowed.get(code, set())
+            scale = any(isinstance(x, int) and not isinstance(x, bool) for x in ok_vals)
             right_type = v is None or (isinstance(v, int) and not isinstance(v, bool) if scale else isinstance(v, bool))
-            if not right_type or v not in ALLOWED[code]:
+            if not right_type or v not in ok_vals:
                 errs.append(f"{cid}/{code}: недопустимое значение {v!r}")
             if not isinstance(c["evidence_turns"], list) or not all(isinstance(t, int) and t >= 1 for t in c["evidence_turns"]):
                 errs.append(f"{cid}/{c['criterion_id']}: evidence_turns — номера реплик с 1")
         s = r["score"]
         if s["final_score"] is not None and not (0 <= s["final_score"] <= 100):
             errs.append(f"{cid}: final_score вне 0..100")
-        crit = next(c["value"] for c in r["criteria"] if c["criterion_id"] == "critical")
-        if s["critical_flag"] != crit:
+        crit = next((c["value"] for c in r["criteria"] if c["criterion_id"] == "critical"), None)
+        if crit is not None and s["critical_flag"] != crit:
             errs.append(f"{cid}: critical_flag должен совпадать с value критерия critical")
     return errs
 
@@ -127,7 +145,11 @@ def main() -> None:
     doc = {"schema_version": "1.0", "team_name": a.team, "model": {"mode": a.mode, "name": ", ".join(models) or "—"},
            "results": results}
 
-    errs = validate(doc, [d["conversation_id"] for d in dialogs], 10 if a.set == "prod" else None)
+    current = db.get_checklist("default")
+    stale = [d["conversation_id"] for d in dialogs if (latest.get(d["conversation_id"]) or {}).get("checklist_version") not in (None, current["version"])]
+    if stale:
+        print(f"  ! {len(stale)} диалог(ов) оценены по старой версии чек-листа (сейчас v{current['version']}): {stale[:5]}… — переоцените")
+    errs = validate(doc, [d["conversation_id"] for d in dialogs], 10 if a.set == "prod" else None, current)
     ok = sum(r["status"] == "ok" for r in results)
     print(f"{a.set}: записей {len(results)} · ok {ok} · error {len(results) - ok} · модель {doc['model']['name']}")
     if a.set == "dev":

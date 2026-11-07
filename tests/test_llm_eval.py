@@ -54,7 +54,7 @@ def test_schema_follows_checklist():
     s = build_schema(CL)["properties"]["criteria"]
     assert set(s["required"]) == set(BY_ID)
     assert s["properties"]["consultation"]["properties"]["answer"]["enum"] == ["20", "15", "10", "5", "0", "na"]
-    assert "na" not in s["properties"]["contact"]["properties"]["answer"]["enum"]
+    assert "na" not in s["properties"]["empathy"]["properties"]["answer"]["enum"]
     assert "flags" in s["properties"]["gross_errors"]["properties"]
 
 
@@ -160,3 +160,14 @@ def test_insufficient_prefix_detected():
     raw = good("yes", explanation=tri("Недостаточно данных: начало записи отсутствует"))
     fixed, probs = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
     assert not probs and fixed["insufficient"] is True
+
+
+def test_contact_na_only_for_calls():
+    cl = json.loads((ROOT / "checklists/default.json").read_text())
+    contact = next(c for c in cl["criteria"] if c["id"] == "contact")
+    raw = {"evidence": [], "explanation": tri("Приветствие не попало в запись"), "checked_range": [],
+           "na_reason": tri("Запись началась после приветствия"), "answer": "na"}
+    _, probs = check_criterion(raw, contact, CHAT["transcript"], "agent chat")
+    assert any("только в канале" in p for p in probs)
+    _, probs = check_criterion(raw, contact, CHAT["transcript"], "voice call")
+    assert not probs

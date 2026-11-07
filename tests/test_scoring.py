@@ -54,7 +54,7 @@ def test_gross_error_is_flag_only():
 
 def test_na_not_allowed_and_bad_step():
     with pytest.raises(ScoringError):
-        score(contact="na")
+        score(empathy="na")
     with pytest.raises(ScoringError):
         score(consultation=12)
 

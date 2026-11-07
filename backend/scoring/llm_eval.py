@@ -43,7 +43,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
         if cid not in raw:
             problems[cid] = ["нет ответа по критерию"]
             continue
-        answers[cid], probs = check_criterion(raw[cid], c, transcript)
+        answers[cid], probs = check_criterion(raw[cid], c, transcript, dialog.get("channel"))
         if probs:
             problems[cid] = probs
 
@@ -68,7 +68,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
             retry_raw = res.data.get("criteria", {})
             if cid not in retry_raw:
                 continue
-            fixed, probs = check_criterion(retry_raw[cid], by_id[cid], transcript)
+            fixed, probs = check_criterion(retry_raw[cid], by_id[cid], transcript, dialog.get("channel"))
             if not probs or cid not in answers:
                 answers[cid] = fixed
             if probs:

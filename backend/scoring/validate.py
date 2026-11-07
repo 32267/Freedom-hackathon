@@ -32,8 +32,9 @@ def _i18n(value) -> dict:
     return {"ru": (value or "").strip(), "kz": "", "en": ""}
 
 
-def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple[dict, list[str]]:
-    """Возвращает (исправленный ответ, список проблем). Исправляет только безопасное: сдвиг msg_index."""
+def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel: str | None = None) -> tuple[dict, list[str]]:
+    """Возвращает (исправленный ответ, список проблем). Исправляет только безопасное: сдвиг msg_index.
+    channel — канал диалога: N/A, разрешённый только для некоторых каналов (na_channels), в других — ошибка."""
     problems = []
     n = len(transcript)
     answer = raw.get("answer")
@@ -67,6 +68,8 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple
 
     na_reasons = _i18n(raw.get("na_reason"))
     na_reason = na_reasons["ru"]
+    if answer == "na" and criterion.get("na_channels") and channel and channel not in criterion["na_channels"]:
+        problems.append(f"N/A для этого критерия допустим только в канале {', '.join(criterion['na_channels'])}, а это {channel}")
     if answer == "na" and not na_reason:
         problems.append("answer=na без na_reason")
     if answer == "yes" and not evidence:

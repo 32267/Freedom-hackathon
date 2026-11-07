@@ -156,3 +156,9 @@ def test_upload_audio_creates_call(client, monkeypatch):
     d = client.get("/api/dialogs/my-call").json()
     assert d["channel"] == "voice call" and d["audio_src"].endswith("/audio") and d["transcript"][1]["offset_sec"] == 3.0
     assert client.get("/api/dialogs/my-call/audio").headers["content-type"] == "audio/mpeg"
+
+
+def test_stats_lists_critical_errors(client):
+    ev = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
+    s = client.get("/api/stats").json()
+    assert len(s["critical_list"]) == int(ev["critical_error"])
