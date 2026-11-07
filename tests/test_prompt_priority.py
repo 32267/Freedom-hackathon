@@ -36,3 +36,19 @@ def test_prompt_tells_model_to_evaluate_only_operator_actions():
     assert "Оцени только фактические действия и реплики оператора." in prompt
     assert "Не приписывай оператору действия клиента, бота или system" in prompt
     assert "Если фактов недостаточно, не выдумывай их" in prompt
+
+
+
+def test_prompt_contains_observed_semantic_regression_guardrails():
+    from pathlib import Path
+    import json
+
+    root = Path(__file__).parent.parent
+    checklist = json.loads((root / "checklists/default.json").read_text())
+    prompt = build_system(checklist)
+
+    assert "Не считай раскрытием конфиденциальной информации имя самого оператора" in prompt
+    assert "только при раскрытии данных третьих лиц или внутренних данных компании" in prompt
+    assert "Не оценивай ожидание в очереди и задержку до подключения" in prompt
+    assert "после того, как оператор вступил в диалог" in prompt
+    assert "одно и то же решение и факты" in prompt
