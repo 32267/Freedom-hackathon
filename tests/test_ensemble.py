@@ -127,3 +127,26 @@ def test_registry_lists_presets_and_availability(monkeypatch):
     by = {p["id"]: p for p in out["providers"]}
     assert by["local"]["available"] is False and "LOCAL_LLM_URL" in by["local"]["reason"]
     assert by["claude_cli"]["configured"] and {p["id"] for p in out["presets"]} >= {"claude", "codex", "compare"}
+
+
+def test_insufficient_data_goes_to_review():
+    a, b = sample("a"), sample("b")
+    for s in (a, b):
+        next(r for r in s["results"] if r["criterion_id"] == "contact")["insufficient"] = True
+    ev = ensemble.merge([a, b], CL)
+    contact = next(r for r in ev["results"] if r["criterion_id"] == "contact")
+    assert contact["agreement"] == 1.0 and contact["needs_review"] and ev["needs_review"]
+
+
+def test_claude_schema_failure_is_output_error(monkeypatch):
+    import subprocess
+
+    from backend.llm import claude_cli_provider as cp
+
+    class P:
+        returncode, stderr = 1, ""
+        stdout = json.dumps({"is_error": True, "subtype": "error_max_structured_output_retries"})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: P())
+    monkeypatch.setattr(cp.shutil, "which", lambda *_: "/usr/bin/claude")
+    with pytest.raises(LLMOutputError):
+        cp.call_json("s", "u", {}, "m", "medium")

@@ -143,7 +143,7 @@ class CqaEvaluation extends HTMLElement {
     return `<div class="cqa-crit ${open ? "open" : ""}">
       <button class="cqa-crit-head" data-crit="${esc(r.criterion_id)}">
         <div><div class="cqa-crit-title">${esc(critTitle(c, lang))}
-          ${r.needs_review ? ' <span class="cqa-badge cqa-badge-warn">⚑ расхождение</span>' : ""}
+          ${r.needs_review ? ` <span class="cqa-badge cqa-badge-warn">⚑ ${r.insufficient ? "мало данных" : "расхождение"}</span>` : ""}
           ${appeal ? ' <span class="cqa-badge cqa-badge-info">апелляция</span>' : ""}
           ${r.source === "appeal" ? ' <span class="cqa-badge cqa-badge-success">решение проверяющего</span>' : ""}</div>
           <div class="cqa-crit-sub">${c.answer_type === "scale" ? `шкала ${c.scale?.min ?? 0}–${c.scale?.max}` : c.answer_type === "flag" ? "флаг" : "да / нет"}${c.na_allowed ? " · допускает Н/П" : ""} · вес ${c.weight}</div></div>

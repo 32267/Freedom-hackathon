@@ -154,3 +154,9 @@ def test_call_timestamps_shortened_in_prompt_only():
     user = build_user(call)
     assert "[0] 10:00:00 operator:" in user and "+05:00" not in user
     assert call["transcript"][0]["timestamp"] == "2026-11-01T10:00:00+05:00"
+
+
+def test_insufficient_prefix_detected():
+    raw = good("yes", explanation=tri("Недостаточно данных: начало записи отсутствует"))
+    fixed, probs = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
+    assert not probs and fixed["insufficient"] is True

@@ -30,7 +30,11 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str, pro
     except json.JSONDecodeError as e:
         raise LLMOutputError(f"claude -p вернул не JSON (код {proc.returncode}): {proc.stderr[-300:]}") from e
     if out.get("is_error") or out.get("subtype") != "success":
-        raise LLMError(f"claude -p: {out.get('subtype')} {out.get('api_error_status') or ''} {str(out.get('result'))[:300]}")
+        msg = f"claude -p: {out.get('subtype')} {out.get('api_error_status') or ''} {str(out.get('result'))[:300]}"
+        # Сбой конкретного ответа (не уложился в схему, исчерпал ходы) — не повод считать Claude недоступным.
+        if str(out.get("subtype", "")).startswith(("error_max_structured_output", "error_max_turns", "error_during_execution")):
+            raise LLMOutputError(msg)
+        raise LLMError(msg)
     data = out.get("structured_output")
     if data is None:
         try:

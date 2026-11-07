@@ -119,7 +119,8 @@ LLM_SAMPLES независимых ответов → по каждому кри
       "problems": [],                 // что не прошло проверку (если validated=false)
       "votes": [{"provider": "claude_cli", "model": "claude-haiku-5-5", "answer": "yes"}],
       "agreement": 1.0,               // доля ответов, совпавших с итоговым
-      "needs_review": false,          // ответы моделей разошлись → показать проверяющему
+      "needs_review": false,          // ответы моделей разошлись или данных недостаточно → показать проверяющему
+      "insufficient": false,          // модель отметила «Недостаточно данных:» (балл всё равно по чек-листу)
       "flags": [],                    // только для flag: какие нарушения найдены
       "checked_range": null,          // если действие пропущено: где ожидалось {"from": 0, "to": 12}
       "na_reason": null,              // = na_reasons.ru

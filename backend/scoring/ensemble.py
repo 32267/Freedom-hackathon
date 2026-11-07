@@ -78,7 +78,8 @@ def merge(samples: list[dict], checklist: dict) -> dict:
         merged["votes"] = [{"provider": s.get("provider"), "model": s.get("model"), "answer": r["answer"]}
                            for s, r in zip(samples, per)]
         merged["agreement"] = round(agreement, 2)
-        merged["needs_review"] = agreement < 1.0
+        merged["insufficient"] = any(r.get("insufficient") for r in same)
+        merged["needs_review"] = agreement < 1.0 or merged["insufficient"]
         results.append(merged)
 
     first = samples[0]

@@ -95,6 +95,9 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict]) -> tuple
         "na_reason": na_reason or None,
         "na_reasons": na_reasons if answer == "na" else None,
         "flags": list(raw.get("flags") or []) if ctype == "flag" else [],
+        # модель сама отметила, что данных не хватило → критерий уходит на проверку человеку (балл — по чек-листу)
+        "insufficient": explanations["ru"].lower().startswith("недостаточно данных:")
+        or explanations["en"].lower().startswith("insufficient data:"),
     }
     return fixed, problems
 

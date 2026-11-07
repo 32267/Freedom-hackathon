@@ -95,6 +95,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
             "na_reason": a["na_reason"],
             "na_reasons": a["na_reasons"],
             "flags": a["flags"],
+            "insufficient": a.get("insufficient", False),
             "source": "llm",
             "validated": cid not in problems,
             "problems": problems.get(cid, []),

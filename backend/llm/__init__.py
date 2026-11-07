@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 
 DEFAULT_CLAUDE_MODEL = "claude-opus-5-5"
-DEAD_FOR_SEC = 600          # провайдер, упавший по лимиту/логину, не дёргаем 10 минут
+DEAD_FOR_SEC = 120          # провайдер, упавший по лимиту/логину, не дёргаем 2 минуты
 _dead: dict[str, float] = {}
 
 
