@@ -9,6 +9,7 @@ from .prompt import build_schema, build_system, build_user
 from .validate import check_criterion
 
 MAX_RETRIES = 1
+CRITERIA_PER_REQUEST = 2
 
 
 def _usage(acc: dict, res) -> None:
@@ -24,12 +25,18 @@ def _usage(acc: dict, res) -> None:
 def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict:
     by_id = {c["id"]: c for c in checklist["criteria"]}
     transcript = dialog["transcript"]
-    system = build_system(checklist)
     usage = {"input": 0, "output": 0, "cache_read": 0, "cost": 0.0, "calls": 0, "model": None, "provider": spec}
 
-    res = call_json(system, build_user(dialog), build_schema(checklist), spec)
-    _usage(usage, res)
-    raw = res.data.get("criteria", {})
+    criterion_ids = list(by_id)
+    raw = {}
+    for start in range(0, len(criterion_ids), CRITERIA_PER_REQUEST):
+        group = criterion_ids[start:start + CRITERIA_PER_REQUEST]
+        system = build_system(checklist, only=group)
+        user = build_user(dialog, only=group)
+        schema = build_schema(checklist, only=group)
+        res = call_json(system, user, schema, spec)
+        _usage(usage, res)
+        raw.update(res.data.get("criteria", {}))
 
     answers, problems = {}, {}
     for cid, c in by_id.items():
@@ -46,7 +53,8 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
         only = list(problems)
         feedback = "\n".join(f"- {cid}: {'; '.join(p)}" for cid, p in problems.items())
         try:
-            res = call_json(system, build_user(dialog, only=only, feedback=feedback), build_schema(checklist, only), spec)
+            retry_system = build_system(checklist, only=only)
+            res = call_json(retry_system, build_user(dialog, only=only, feedback=feedback), build_schema(checklist, only), spec)
         except LLMError:
             break
         _usage(usage, res)
