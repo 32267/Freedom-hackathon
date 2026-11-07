@@ -40,7 +40,9 @@ export const api = {
   async getDialogs(filters = {}) {
     if (!MOCK_MODE) {
       const query = new URLSearchParams(Object.entries(filters).filter(([,v]) => v));
-      return request(`/dialogs?${query}`);
+      const result = await request(`/dialogs?${query}`);
+      const rows = Array.isArray(result) ? result : (result?.dialogs || []);
+      return rows.map(dialog => ({ ...dialog, evaluation_status: dialog.evaluation_status || (dialog.total_score !== null && dialog.total_score !== undefined ? "done" : "not_started"), needs_review: Boolean(dialog.needs_review), critical_error: Boolean(dialog.critical_error) }));
     }
     const data = await loadMockData();
     return data.dialogs.filter(dialog =>
