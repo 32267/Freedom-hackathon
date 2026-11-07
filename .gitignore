@@ -13,6 +13,7 @@ data/*.db
 llm/data/*
 !llm/data/.gitkeep
 llm/models/
+llm/runs/  # локальные прогоны и диагностические файлы содержат данные диалогов
 *.gguf
 *.safetensors
 invoke*.json
