@@ -1,8 +1,8 @@
-"""Своя модель за OpenAI-совместимым сервером (Ollama, vLLM, LM Studio, llama.cpp server).
+"""Локальная MLX-VLM модель через OpenAI-совместимый Chat Completions API.
 
 Задел под модель, дообученную в папке llm/. Настройки в .env:
-  LOCAL_LLM_URL=http://localhost:11434/v1     # базовый URL с /v1
-  LOCAL_LLM_MODEL=cqa-judge                   # имя модели на сервере
+  LOCAL_LLM_URL=http://localhost:8080/v1      # MLX-VLM server
+  LOCAL_LLM_MODEL=mlx-community/Qwen3.5-4B-MLX-4bit
   LOCAL_LLM_API_KEY=                          # если сервер требует
   LOCAL_LLM_MAX_TOKENS=3072                  # максимум токенов ответа
   LOCAL_LLM_TIMEOUT=600                       # таймаут запроса в секундах
