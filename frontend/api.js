@@ -7,7 +7,13 @@ async function request(path, options = {}) {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options
   });
-  if (!response.ok) throw new Error(`Ошибка API: ${response.status}`);
+  if (!response.ok) {
+    let detail = "";
+    try { detail = (await response.json())?.error || ""; } catch { /* тело не JSON */ }
+    const error = new Error(detail ? `Ошибка API ${response.status}: ${detail}` : `Ошибка API: ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return response.status === 204 ? null : response.json();
 }
 
@@ -64,7 +70,14 @@ export const api = {
       const found = data.evaluations.find(item => item.id === id || item.conversation_id === conversationId);
       return found ? { ...found, conversation_id: conversationId || found.conversation_id } : null;
     }
-    return request(`/evaluations/${encodeURIComponent(id)}`);
+    if (id) return request(`/evaluations/${encodeURIComponent(id)}`);
+    if (!conversationId) return null;
+    try {
+      return await request(`/dialogs/${encodeURIComponent(conversationId)}/evaluation`);
+    } catch (error) {
+      if (error.status === 404) return null;   // диалог ещё не оценён
+      throw error;
+    }
   },
   async runEvaluation(payload) {
     if (MOCK_MODE) {

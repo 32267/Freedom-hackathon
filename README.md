@@ -23,6 +23,8 @@
 
 **Данные:** DEV — 65 диалогов (60 чатов + 5 звонков; 35 RU, 15 KZ, 15 EN). Получаем GET-запросом к API организаторов (URL в `.env`, в git не коммитим). Подробно — [docs/GUIDE.md](docs/GUIDE.md).
 
+**Ревью и готовность к защите:** [docs/REVIEW.md](docs/REVIEW.md). Финал с 10 примерами — `tools/jury_kit.py` (выгрузка наших оценок и сравнение с жюри).
+
 **Правила оценки:** [за что снижаем, за что нет](docs/SCORING_RULES.md) · [регламент общения оператора](docs/OPERATOR_GUIDE.md).
 
 **Чек-лист** ([docs/CHECKLIST.md](docs/CHECKLIST.md), [`checklists/default.json`](checklists/default.json)): 7 критериев с весами 10/15/20/20/15/15/5 = 100 (два из них — шкалы 0–20 и 0–10 с фиксированными ступенями) + 8-й «Грубые ошибки» — флаг без баллов (оскорбление, платная услуга в обход компании, раскрытие конфиденциальной информации). N/A перераспределяет вес, итог округляется до 2 знаков. Контекст компании — [docs/COMPANY.md](docs/COMPANY.md).
@@ -125,15 +127,22 @@
 ## Запуск
 
 ```bash
-cp .env.example .env            # вписать CQA_API_URL и ключ модели
+cp .env.example .env            # вписать CQA_API_URL; оценщики — LLM_PROVIDERS (по умолчанию Claude → Codex по подписке)
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/fetch_dataset.py DEV
-uvicorn backend.main:app --reload --port 8000
-# открыть http://localhost:8000
+uvicorn backend.main:app --port 8000
+# открыть http://localhost:8000  → сразу откроется интерфейс
 ```
+При первом запуске база `data/cqa.db` наполняется сама: чек-лист, диалоги из `data/DEV.json`
+(если файла нет — забрать набор кнопкой/запросом `POST /api/datasets/DEV/import`) и готовые оценки из `dataset/DEV/evaluations/`.
+Без моделей и затрат: `SCORING_MODE=mock`. Документация API: http://localhost:8000/docs.
 
-Контрольный набор (час 23): `scripts/run_control.sh <group_id>`.
+Контрольный набор (час 23):
+```bash
+curl -X POST localhost:8000/api/datasets/<group_id>/import
+curl -X POST localhost:8000/api/evaluations/batch -H 'Content-Type: application/json' -d '{"group_id": "<group_id>"}'
+curl localhost:8000/api/jobs/<job_id>      # прогресс
+```
 
 **Модель и стоимость:** Claude через официальный SDK `anthropic`, один вызов на диалог (+ повтор только по критериям, не прошедшим проверку цитат).
 Замер на DEV-диалогах (чаты RU/KZ/EN + звонки), с обоснованиями на трёх языках: один ответ Claude Haiku 5.5 ≈ **$0.004–0.006**,

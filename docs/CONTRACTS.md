@@ -152,8 +152,10 @@ LLM_SAMPLES независимых ответов → по каждому кри
 | Метод | Путь | Описание | Владелец |
 |---|---|---|---|
 | POST | `/api/datasets/{group_id}/import` | Забрать набор у организаторов, сохранить диалоги | Codex-2 |
-| GET | `/api/dialogs?group_id=&language=&channel=` | Список диалогов + последний total_score | Codex-2 |
-| GET | `/api/dialogs/{id}` | Диалог целиком | Codex-2 |
+| GET | `/api/dialogs?group_id=&language=&channel=&search=` | Список диалогов + `evaluation_id`, `evaluation_status`, `total_score`, `critical_error`, `needs_review` | Codex-2 |
+| GET | `/api/dialogs/{id}` | Диалог целиком + `msg_index`, `offset_sec`, `audio_src`, сводка последней оценки | Codex-2 |
+| GET | `/api/dialogs/{id}/evaluation` | Последняя оценка диалога (404 — ещё не оценён) | Codex-2 |
+| GET | `/api/dialogs/{id}/audio` | mp3 записи звонка (Range → перемотка); сам достаёт файл из страницы плеера `audio_url` | Codex-2 |
 | POST | `/api/dialogs/upload` | Загрузка своего транскрипта (JSON формата Dialog) | Codex-2 |
 | GET/POST | `/api/checklists` | Список / создать | Codex-2 (хранение) |
 | GET/PUT | `/api/checklists/{id}` | Получить / сохранить новую версию | Codex-2 |
@@ -162,7 +164,7 @@ LLM_SAMPLES независимых ответов → по каждому кри
 | POST | `/api/evaluations/batch` | `{group_id, checklist_id, providers?, samples?}` → оценить весь набор (контрольный!) | Codex-2 |
 | GET | `/api/evaluations/{id}` | Evaluation | Codex-2 |
 | POST | `/api/appeals` | `{evaluation_id, criterion_id, comment}` | Codex-2 |
-| GET | `/api/appeals?status=open` | Очередь проверяющего | Codex-2 |
+| GET | `/api/appeals?status=open` | Очередь проверяющего: апелляция + `result` (спорный критерий) + `fragment` (реплики вокруг доказательства) | Codex-2 |
 | POST | `/api/appeals/{id}/decision` | `{action: "confirm"|"change", answer?, reason}` → пересчёт | Codex-2 → `scoring.recompute()` |
 
 ## 3. Python-интерфейс scoring (Ислам → Codex-2)

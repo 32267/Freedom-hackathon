@@ -23,7 +23,7 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
             # Чек-лист в system стабилен между диалогами → кэшируем префикс.
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user}],
-            output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
+            output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},  # pyright: ignore[reportArgumentType]
             # Если классификатор безопасности откажет, API сам повторит на рекомендованной модели.
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",

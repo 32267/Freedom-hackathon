@@ -33,7 +33,7 @@ CQA (Conversation Quality Analytics) — хакатон Freedom Broker, 24 ча�
 |---|---|---|
 | Ислам | Claude Code | `backend/scoring/`, `backend/llm/`, `llm/`, `tools/`, `checklists/`, `fixtures/`, `docs/CONTRACTS.md` |
 | Codex-1 | Codex | `frontend/` |
-| Codex-2 | Codex | `backend/api/`, `backend/db/`, `backend/main.py`, `scripts/`, `README.md` раздел «Запуск» |
+| Codex-2 | Codex | `backend/api.py`, `backend/db.py`, `backend/main.py`, `scripts/`, `README.md` раздел «Запуск» |
 
 Общие файлы (`AGENTS.md`, `README.md` разделы 1–6, `docs/TASKS.md`, `requirements.txt`, `.github/`) — правка только маленькими отдельными коммитами.
 

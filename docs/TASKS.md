@@ -43,17 +43,18 @@
 - [ ] **F8** P2 Пример встраивания одного компонента (`frontend/embed-example.html`) — аргумент для D365
 
 ## Codex-2 — API, хранение, данные
-- [ ] **B1** P0 `backend/main.py`, SQLite-схема, раздача `frontend/`, `fixtures/`, `checklists/` статикой, `/api/health`
-- [ ] **B2** P0 `scripts/fetch_dataset.py` + `POST /api/datasets/{group_id}/import` (URL из `.env`), `offset_sec`, `msg_index`
-- [ ] **B3** P0 Чек-листы: CRUD с версиями, импорт `checklists/default.json` при старте
-- [ ] **B4** P0 Оценки: `POST /api/evaluations` (сначала на `scoring.mock`), кэш по `cache_key`
-- [ ] **B5** P0 Батч: job, параллельность, ретраи, `GET /api/jobs/{id}`
-- [ ] **B6** P0 Апелляции + решение + пересчёт через `scoring.recompute`, хранить исходный и финальный итог
+> B1–B6, B10, B11 сделаны Исламом/Claude (`backend/main.py`, `backend/api.py`, `backend/db.py`, тесты `tests/test_api.py`), чтобы связать фронт и бэк. Дальше — B7–B9 и доработки.
+- [x] **B1** P0 `backend/main.py`, SQLite-схема, раздача `frontend/`, `fixtures/`, `checklists/` статикой, `/api/health`
+- [x] **B2** P0 `scripts/fetch_dataset.py` + `POST /api/datasets/{group_id}/import` (URL из `.env`), `offset_sec`, `msg_index`
+- [x] **B3** P0 Чек-листы: CRUD с версиями, импорт `checklists/default.json` при старте
+- [x] **B4** P0 Оценки: `POST /api/evaluations` (сначала на `scoring.mock`), кэш по `cache_key`
+- [x] **B5** P0 Батч: job, параллельность, ретраи, `GET /api/jobs/{id}`
+- [x] **B6** P0 Апелляции + решение + пересчёт через `scoring.recompute`, хранить исходный и финальный итог
 - [ ] **B7** P0 `scripts/run_control.sh <group_id>`: импорт + батч одной командой, отчёт об ошибках
 - [ ] **B8** P0 README «Запуск» проверен с чистого клона
 - [ ] **B9** P1 Экспорт результатов в CSV
-- [ ] **B11** P0 `GET /api/dialogs/{id}/audio`: открыть `audio_url` (HTML-плеер), достать `<source src>` (mp3, ссылка живёт ~1 ч), отдать mp3 с поддержкой Range (для перемотки), кэшировать в `data/audio/`. Пример — `tools/export_local_dataset.py`
-- [ ] **B10** P1 `GET /api/llm/providers` (→ `registry.list_providers()`), параметры `providers`/`samples` в оценке и батче; при решении по апелляции ставить `source: "appeal"`
+- [x] **B11** P0 `GET /api/dialogs/{id}/audio`: открыть `audio_url` (HTML-плеер), достать `<source src>` (mp3, ссылка живёт ~1 ч), отдать mp3 с поддержкой Range (для перемотки), кэшировать в `data/audio/`. Пример — `tools/export_local_dataset.py`
+- [x] **B10** P1 `GET /api/llm/providers` (→ `registry.list_providers()`), параметры `providers`/`samples` в оценке и батче; при решении по апелляции ставить `source: "appeal"`
 
 ## Запросы между владельцами
 <!-- "Codex-1 → Codex-2: нужен эндпоинт X" -->

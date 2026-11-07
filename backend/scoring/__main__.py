@@ -66,7 +66,7 @@ def _summary(out_dir: Path, checklist: dict, dialogs: list[dict]) -> None:
     (out_dir / "summary.csv").write_text("\n".join(csv) + "\n")
 
 
-def main() -> None:
+def main() -> int:
     load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("path")

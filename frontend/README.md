@@ -2,6 +2,13 @@
 
 Vanilla HTML/CSS/JavaScript interface built with Web Components. No npm install, build step, framework, or third-party runtime dependency is required.
 
+## Run with the backend (live data)
+
+From the repository root: `uvicorn backend.main:app --port 8000`, then open http://localhost:8000 —
+it serves this frontend and the API (`/api/...`) from one origin. Live mode loads the 65 DEV dialogs and their
+saved evaluations; **Запустить оценку** calls the configured evaluators (Claude / Codex). Call recordings play
+through `/api/dialogs/{id}/audio` (`audio_src`), because the organizers' `audio_url` is an HTML player page.
+
 ## Run in demo mode
 
 From the repository root:
