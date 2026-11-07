@@ -58,7 +58,10 @@ In a second terminal, use the project's normal Python environment and install th
 source .venv/bin/activate
 export LOCAL_LLM_URL=http://127.0.0.1:8080/v1
 export LOCAL_LLM_MODEL=mlx-community/Qwen3.5-4B-MLX-4bit
-export LOCAL_LLM_TIMEOUT=300
+export LOCAL_LLM_TIMEOUT=600
+# MLX-LM repetition controls; set penalty to 1.0 to disable them if unsupported.
+export LOCAL_LLM_REPETITION_PENALTY=1.1
+export LOCAL_LLM_REPETITION_CONTEXT_SIZE=64
 export SCORING_MODE=llm
 python -m llm.benchmark.smoke \
   --dialogs llm/data/DEV.json \
@@ -86,6 +89,10 @@ Each call writes a separate JSON file containing the conversation and criterion 
 
 
 The local provider sends a strict JSON Schema response-format request. If the server rejects `response_format: json_schema`, the smoke test records the failure; do not silently downgrade to unconstrained text or claim schema-constrained output passed.
+
+
+
+The local provider applies a repetition penalty and context window by default. If the server rejects either request field, check that the installed server supports MLX-LM's `repetition_penalty` and `repetition_context_size` chat-completion parameters. To disable these fields for compatibility testing, set `LOCAL_LLM_REPETITION_PENALTY=1.0`. An obvious same-word loop (12 or more consecutive repetitions) triggers exactly one retry with a stronger penalty; a second loop is returned as an explicit evaluation error rather than accepted as a valid result. Ordinary `finish_reason=length` truncation is not automatically retried, because repeating the same request with a larger token budget can amplify runaway generation.
 
 ## 4. Record latency and memory
 

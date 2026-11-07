@@ -6,6 +6,8 @@
   LOCAL_LLM_API_KEY=                          # если сервер требует
   LOCAL_LLM_MAX_TOKENS=12288                  # максимум токенов ответа
   LOCAL_LLM_TIMEOUT=600                       # таймаут запроса в секундах
+  LOCAL_LLM_REPETITION_PENALTY=1.1            # штраф за повторение (1.0 отключает)
+  LOCAL_LLM_REPETITION_CONTEXT_SIZE=64        # окно токенов для штрафа за повторение
   LOCAL_LLM_DEBUG_DIR=                        # каталог для opt-in локальной диагностики
 
 Ответ запрашивается по JSON-схеме (response_format json_schema); сервер должен это поддерживать.
@@ -36,6 +38,14 @@ def _debug_context(user: str, schema: dict) -> dict:
     }
 
 
+def _has_repetition_loop(text: str | None, minimum_repeats: int = 12) -> bool:
+    """Detect an obvious same-word generation loop without rejecting ordinary repetition."""
+    if not isinstance(text, str):
+        return False
+    pattern = r"\b([\w\u0080-\uffff]+)(?:[\s,;:.-]+\1){%d,}\b" % (minimum_repeats - 1)
+    return re.search(pattern, text, flags=re.IGNORECASE) is not None
+
+
 def _capture_debug(
     *,
     debug_dir: str,
@@ -64,6 +74,8 @@ def _capture_debug(
                 "response_format": request_body.get("response_format"),
                 "temperature": request_body.get("temperature"),
                 "max_tokens": request_body.get("max_tokens"),
+                "repetition_penalty": request_body.get("repetition_penalty"),
+                "repetition_context_size": request_body.get("repetition_context_size"),
             },
             "http_status": http_status,
             "response": response_body,
@@ -94,6 +106,14 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
     except ValueError as e:
         raise LLMError("LOCAL_LLM_MAX_TOKENS должен быть целым числом больше 0") from e
 
+    try:
+        repetition_penalty = float(os.getenv("LOCAL_LLM_REPETITION_PENALTY", "1.1"))
+        repetition_context_size = int(os.getenv("LOCAL_LLM_REPETITION_CONTEXT_SIZE", "64"))
+        if repetition_penalty < 1.0 or repetition_context_size < 1:
+            raise ValueError
+    except ValueError as e:
+        raise LLMError("LOCAL_LLM_REPETITION_PENALTY должен быть >= 1.0, а LOCAL_LLM_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
+
     timeout = float(os.getenv("LOCAL_LLM_TIMEOUT", "600"))
     body = {
         "model": name,
@@ -102,6 +122,9 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
         "temperature": 0,
         "max_tokens": max_tokens,
     }
+    if repetition_penalty > 1.0:
+        body["repetition_penalty"] = repetition_penalty
+        body["repetition_context_size"] = repetition_context_size
     debug_dir = os.getenv("LOCAL_LLM_DEBUG_DIR", "").strip()
     debug_context = _debug_context(user, schema) if debug_dir else None
     try:
@@ -132,18 +155,58 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
 
     if debug_dir:
         _capture_debug(
-            debug_dir=debug_dir,
-            context=debug_context,
-            request_body=body,
-            response_body={
-                "content": content,
-                "finish_reason": finish_reason,
-                "usage": usage,
-                "id": out.get("id") if isinstance(out, dict) else None,
-                "model": out.get("model") if isinstance(out, dict) else None,
-            },
+            debug_dir=debug_dir, context=debug_context, request_body=body,
+            response_body={"content": content, "finish_reason": finish_reason, "usage": usage,
+                           "id": out.get("id") if isinstance(out, dict) else None,
+                           "model": out.get("model") if isinstance(out, dict) else None},
             http_status=r.status_code,
         )
+
+    retry_count = 0
+    first_usage = dict(usage)
+    if _has_repetition_loop(content):
+        # One bounded retry with a stronger penalty. Do not retry ordinary truncation:
+        # raising max_tokens would only make a runaway generation more expensive.
+        retry_count = 1
+        retry_body = dict(body)
+        retry_body["repetition_penalty"] = min(2.0, max(1.1, repetition_penalty) * 1.15)
+        retry_body["repetition_context_size"] = repetition_context_size
+        try:
+            retry_response = httpx.post(f"{base}/chat/completions", json=retry_body, headers=headers, timeout=timeout)
+        except httpx.TimeoutException as e:
+            raise LLMError(f"Своя модель: таймаут повторной генерации после {timeout:g} с") from e
+        except httpx.HTTPError as e:
+            raise LLMError(f"Своя модель недоступна при повторной генерации: {e}") from e
+        if retry_response.status_code >= 400:
+            raise LLMError(f"Своя модель: HTTP {retry_response.status_code} при повторной генерации "
+                           f"(возможно, сервер не поддерживает repetition_penalty): {retry_response.text[:160]}")
+        try:
+            out = retry_response.json()
+        except ValueError as e:
+            raise LLMOutputError(f"Своя модель вернула не JSON-ответ API при повторной генерации: {e}") from e
+        choice = (out.get("choices") or [{}])[0] if isinstance(out, dict) else {}
+        message = choice.get("message") or {} if isinstance(choice, dict) else {}
+        content = message.get("content") if isinstance(message, dict) else None
+        usage = out.get("usage") or {} if isinstance(out, dict) else {}
+        finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
+        body = retry_body
+        r = retry_response
+        if debug_dir:
+            retry_context = {**debug_context, "attempt": debug_context["attempt"] + 1}
+            _capture_debug(
+                debug_dir=debug_dir, context=retry_context, request_body=body,
+                response_body={"content": content, "finish_reason": finish_reason, "usage": usage,
+                               "id": out.get("id") if isinstance(out, dict) else None,
+                               "model": out.get("model") if isinstance(out, dict) else None},
+                http_status=r.status_code,
+            )
+        if _has_repetition_loop(content):
+            raise LLMOutputError(
+                "Своя модель продолжила повторять одно слово после повторной генерации "
+                f"(repetition_penalty={body['repetition_penalty']}, finish_reason={finish_reason!r})"
+            )
+        usage = {key: (first_usage.get(key, 0) or 0) + (usage.get(key, 0) or 0)
+                 for key in set(first_usage) | set(usage)}
 
     try:
         data = json.loads(content)
@@ -172,5 +235,8 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
             "finish_reason": finish_reason,
             "max_tokens": max_tokens,
             "response_chars": len(content) if isinstance(content, str) else 0,
+            "retry_count": retry_count,
+            "repetition_penalty": body.get("repetition_penalty", 1.0),
+            "repetition_context_size": body.get("repetition_context_size"),
         },
     )
