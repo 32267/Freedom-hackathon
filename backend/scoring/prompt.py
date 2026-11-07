@@ -34,9 +34,10 @@ def _criterion_block(c: dict) -> str:
     return "\n".join(lines)
 
 
-def build_system(checklist: dict) -> str:
+def build_system(checklist: dict, only: list[str] | None = None) -> str:
     notes = "\n".join(f"- {n}" for n in checklist.get("notes", []))
-    criteria = "\n\n".join(_criterion_block(c) for c in checklist["criteria"])
+    selected = [c for c in checklist["criteria"] if not only or c["id"] in only]
+    criteria = "\n\n".join(_criterion_block(c) for c in selected)
     return f"""Ты — специалист по контролю качества клиентской поддержки брокерской компании Freedom Broker.
 Ты оцениваешь работу ОПЕРАТОРА в одном диалоге по чек-листу «{checklist["name"]}».
 Диалоги бывают на русском, казахском и английском; чек-лист один для всех языков.
