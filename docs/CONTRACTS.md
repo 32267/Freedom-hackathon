@@ -75,6 +75,11 @@ critical    = любой flag с answer "yes" → critical_error = true, critica
 ```
 Пример: identification = N/A, contact = Нет, остальное Да → 1 − 10/80 = **87.5**.
 
+### Несколько ответов (`backend/scoring/ensemble.py`)
+LLM_SAMPLES независимых ответов → по каждому критерию: большинство (да/нет/N/A/флаг) или нижняя медиана (шкала);
+ничья → ответ первого провайдера (Claude). Объяснение и цитаты берутся из ответа, совпавшего с итоговым.
+Провайдеры по уровням из LLM_PROVIDERS: Codex включается, только если Claude не ответил.
+
 ### Evaluation
 ```json
 {
@@ -83,7 +88,11 @@ critical    = любой flag с answer "yes" → critical_error = true, critica
   "checklist_id": "default",
   "checklist_version": 1,
   "status": "done",                   // queued | running | done | error
-  "model": "gpt-4.1-mini",
+  "model": "claude-haiku-5-5",           // через запятую, если ответы от разных моделей
+  "providers": ["claude_cli", "claude_cli", "claude_cli"],   // кто дал каждый из ответов
+  "samples": 3,                       // сколько ответов сравнивали (LLM_SAMPLES)
+  "needs_review": false,              // true — хотя бы по одному критерию ответы разошлись
+  "provider_errors": [],              // кто не ответил (например, лимит Claude → ответил Codex)
   "cost_usd": 0.004,
   "tokens": {"input": 3200, "output": 900},
   "cache_key": "sha256(dialog)+checklist_id+version",   // повторная оценка → из кэша
@@ -104,6 +113,10 @@ critical    = любой flag с answer "yes" → critical_error = true, critica
       "evidence": [{"msg_index": 0, "quote": "Здравствуйте!"}],   // quote обязана быть подстрокой реплики
       "source": "llm",                // "llm" | "rule" (посчитано кодом) | "appeal" (изменено проверяющим)
       "validated": true,              // прошло проверку доказательств
+      "problems": [],                 // что не прошло проверку (если validated=false)
+      "votes": [{"provider": "claude_cli", "model": "claude-haiku-5-5", "answer": "yes"}],
+      "agreement": 1.0,               // доля ответов, совпавших с итоговым
+      "needs_review": false,          // ответы моделей разошлись → показать проверяющему
       "flags": [],                    // только для flag: какие нарушения найдены
       "checked_range": null,          // если действие пропущено: где ожидалось {"from": 0, "to": 12}
       "na_reason": null

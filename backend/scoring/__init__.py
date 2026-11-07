@@ -1,16 +1,25 @@
-"""Публичный интерфейс оценки. Codex-2 вызывает только evaluate() и recompute()."""
+"""Публичный интерфейс оценки. Codex-2 вызывает только evaluate() и recompute().
+
+SCORING_MODE в .env: "llm" — настоящая оценка моделью (по умолчанию), "mock" — фейковая, без ключа и затрат.
+Провайдеры и число ответов для сравнения — LLM_PROVIDERS и LLM_SAMPLES (см. backend/llm/__init__.py, ensemble.py).
+"""
 import os
 
-from .math import compute
+from .math import ScoringError, compute
 
 
 def evaluate(dialog: dict, checklist: dict) -> dict:
-    if os.getenv("SCORING_MODE", "mock") == "mock":
+    """Evaluation по контракту (без id). Бросает backend.llm.LLMError при сбое модели."""
+    if os.getenv("SCORING_MODE", "llm") == "mock":
         from .mock import evaluate as _mock
         return _mock(dialog, checklist)
-    raise NotImplementedError("LLM-оценка — задачи S4–S6")
+    from .ensemble import evaluate_ensemble
+    return evaluate_ensemble(dialog, checklist)
 
 
 def recompute(evaluation: dict, checklist: dict) -> dict:
     """Пересчёт итогов после изменения ответов (апелляция). Без LLM."""
     return {**evaluation, **compute(evaluation["results"], checklist)}
+
+
+__all__ = ["evaluate", "recompute", "ScoringError"]

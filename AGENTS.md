@@ -3,6 +3,7 @@
 Этот файл читают **все** агенты. Claude Code подхватывает его через `CLAUDE.md`, Codex — напрямую.
 Перед любой задачей прочитай: этот файл → `docs/CONTRACTS.md` → свою задачу по ID в `docs/TASKS.md`.
 В `frontend/` и `backend/` есть свои `AGENTS.md` с локальными правилами. Тексты PDF: гайд — `docs/GUIDE.md`, чек-лист — `docs/CHECKLIST.md`, о компании — `docs/COMPANY.md` (сами PDF не читай).
+Особенности DEV-данных (форматы времени, системные события, маскирование) — `docs/DATA.md`.
 
 ## Проект
 CQA (Conversation Quality Analytics) — хакатон Freedom Broker, 24 часа.

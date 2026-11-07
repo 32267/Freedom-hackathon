@@ -71,7 +71,8 @@ def test_sections():
     assert s == {"start": 100.0, "security": 100.0, "conduct": 85.71}   # 30/35
 
 
-def test_mock_shape_and_recompute():
+def test_mock_shape_and_recompute(monkeypatch):
+    monkeypatch.setenv("SCORING_MODE", "mock")
     for name in ("dialog.chat.json", "dialog.call.json"):
         ev = evaluate(json.loads((ROOT / "fixtures" / name).read_text()), CL)
         assert len(ev["results"]) == 8 and "total_score" in ev
