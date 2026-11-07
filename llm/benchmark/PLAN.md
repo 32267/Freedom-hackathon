@@ -1,6 +1,6 @@
 # CQA model benchmark plan
 
-Status: **Phase 0 — benchmark design**  
+Status: **Phase 1 implemented in PR; Phase 2 not started**  
 Owner: CQA / LLM workstream  
 Branch: `islam/model-benchmark`
 
@@ -102,10 +102,10 @@ If the gold set is too small to distinguish candidates, report the result as inc
 - [x] Define dataset, metrics, and acceptance gates.
 
 ### Phase 1 — benchmark harness
-- [ ] Add a CLI that loads a fixed dialog JSON and checklist, calls one configured provider/model per run, and writes JSONL results plus a run manifest.
-- [ ] Add a model matrix config (model ID, runtime name, quantization, context length).
-- [ ] Add metric aggregation against human-labelled gold JSONL.
-- [ ] Add tests for split integrity, metric calculations, missing outputs, invalid evidence, and language-level reporting.
+- [x] Add a CLI that loads a fixed dialog JSON and checklist, calls one configured provider/model per run, and writes JSONL results plus a run manifest.
+- [x] Add a model matrix config (model ID, runtime name, quantization, context length); exact MLX distributions remain unverified.
+- [x] Add metric aggregation against human-labelled gold JSONL.
+- [x] Add tests for split integrity, metric calculations, missing outputs, invalid evidence, and language-level reporting.
 - [ ] Keep the existing `backend/scoring/validate.py` as the evidence-validation authority.
 
 ### Phase 2 — local inference
@@ -148,4 +148,4 @@ python -m llm.benchmark report \
   --out llm/runs/qwen3.5-4b-mlx-q4-report.json
 ```
 
-These commands describe the intended interface; the CLI is not implemented yet.
+The CLI is implemented in Phase 1. The gold-label schema and annotation guide are in `llm/benchmark/GOLD_FORMAT.md`. Run `python -m unittest discover -s llm/benchmark/tests -v` for the harness unit tests. Phase 2 remains unstarted until a compatible MLX runtime/model is installed and smoke-tested on the target M5 Mac.

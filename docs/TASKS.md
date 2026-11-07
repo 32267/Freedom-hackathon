@@ -58,3 +58,8 @@
 
 ## Запросы между владельцами
 <!-- "Codex-1 → Codex-2: нужен эндпоинт X" -->
+
+
+## Benchmark harness (Phase 1 PR)
+- [x] `llm/benchmark/`: CLI, model matrix, gold JSONL validation, metrics/reporting and unit tests are implemented in PR `codex/benchmark-phase1`.
+- [ ] Phase 2: install/verify MLX-compatible distributions and run the M5 RU/KZ/EN smoke test; do not mark model candidates as installed based on configuration alone.
