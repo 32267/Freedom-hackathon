@@ -43,7 +43,11 @@ class CqaApp extends HTMLElement {
     this.querySelector("#cqa-current-page").textContent = titles[active] || titles.dashboard;
     this.querySelectorAll(".cqa-nav a").forEach(link => link.classList.toggle("active", link.dataset.route === active));
     if (active === "conversations") view.innerHTML = "<cqa-dialog-list></cqa-dialog-list>";
-    else if (active === "evaluation") view.innerHTML = `<cqa-evaluation conversation-id="${id ? decodeURIComponent(id) : ""}"></cqa-evaluation>`;
+    else if (active === "evaluation") {
+      const component = document.createElement("cqa-evaluation");
+      if (id) { try { component.setAttribute("conversation-id", decodeURIComponent(id)); } catch { component.setAttribute("conversation-id", id); } }
+      view.replaceChildren(component);
+    }
     else view.innerHTML = "<cqa-dashboard></cqa-dashboard>";
   }
 }
