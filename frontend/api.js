@@ -69,8 +69,9 @@ export const api = {
   async runEvaluation(payload) {
     if (MOCK_MODE) {
       const data = await loadMockData();
-      const base = data.evaluations[0];
-      return { ...base, id: `ev_demo_${Date.now()}`, conversation_id: payload.conversation_id, status: "done", model: "mock", needs_review: false, results: base.results.map(result => ({ ...result })) };
+      const base = data.evaluations.find(item => item.conversation_id === payload.conversation_id);
+      if (!base) throw new Error("Для этого диалога нет готовой демо-оценки. Подключите backend/LLM или выберите fixture-chat-ru.");
+      return { ...base, id: `ev_demo_${Date.now()}`, conversation_id: payload.conversation_id, status: "done", model: "mock", needs_review: false, results: base.results.map(result => ({ ...result, evidence: (result.evidence || []).map(item => ({ ...item })) })) };
     }
     return request("/evaluations", { method: "POST", body: JSON.stringify(payload) });
   },
