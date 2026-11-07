@@ -158,5 +158,8 @@ def test_repetition_penalty_can_be_disabled(monkeypatch):
             "usage": {},
         })
     ))
-    call_json("system", "user", {"type": "object"}, "local")
+    result = call_json("system", "user", {"type": "object"}, "local")
     assert "repetition_penalty" not in seen["body"]
+    assert "repetition_context_size" not in seen["body"]
+    assert result.meta["repetition_penalty"] == 1.0
+    assert result.meta["repetition_context_size"] is None
