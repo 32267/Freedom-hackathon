@@ -1,0 +1,199 @@
+{
+  "conversation_id": "fixture-call-en",
+  "checklist_id": "default",
+  "checklist_version": 1,
+  "status": "done",
+  "model": "mock",
+  "cost_usd": 0.0,
+  "tokens": {
+    "input": 0,
+    "output": 0
+  },
+  "results": [
+    {
+      "criterion_id": "contact",
+      "answer": "yes",
+      "raw_score": 1,
+      "max_score": 1,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Установление контакта».",
+      "evidence": [
+        {
+          "msg_index": 0,
+          "quote": "Good morning, this is Daniyar from support. How can I help?"
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 10,
+      "effective_weight": 10.0,
+      "weighted_score": 10.0
+    },
+    {
+      "criterion_id": "needs",
+      "answer": "yes",
+      "raw_score": 1,
+      "max_score": 1,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Выявление потребности».",
+      "evidence": [
+        {
+          "msg_index": 2,
+          "quote": "Which tariff plan are you on?"
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 15,
+      "effective_weight": 15.0,
+      "weighted_score": 15.0
+    },
+    {
+      "criterion_id": "identification",
+      "answer": "no",
+      "raw_score": 0,
+      "max_score": 1,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Идентификация».",
+      "evidence": [
+        {
+          "msg_index": 4,
+          "quote": "On the standard plan the commission is shown in your tariff section of the app."
+        }
+      ],
+      "checked_range": {
+        "from": 0,
+        "to": 4
+      },
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 20,
+      "effective_weight": 20.0,
+      "weighted_score": 0.0
+    },
+    {
+      "criterion_id": "consultation",
+      "answer": 5,
+      "raw_score": 5,
+      "max_score": 20,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Корректная и полная консультация».",
+      "evidence": [
+        {
+          "msg_index": 0,
+          "quote": "Good morning, this is Daniyar from support. How can I help?"
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 20,
+      "effective_weight": 20.0,
+      "weighted_score": 5.0
+    },
+    {
+      "criterion_id": "empathy",
+      "answer": "yes",
+      "raw_score": 1,
+      "max_score": 1,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Эмпатия и клиентоориентированность».",
+      "evidence": [
+        {
+          "msg_index": 2,
+          "quote": "Which tariff plan are you on?"
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 15,
+      "effective_weight": 15.0,
+      "weighted_score": 15.0
+    },
+    {
+      "criterion_id": "dialog_management",
+      "answer": 4,
+      "raw_score": 4,
+      "max_score": 10,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Управление диалогом, скорость и грамотность».",
+      "evidence": [
+        {
+          "msg_index": 4,
+          "quote": "On the standard plan the commission is shown in your tariff section of the app."
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 15,
+      "effective_weight": 15.0,
+      "weighted_score": 6.0
+    },
+    {
+      "criterion_id": "closing",
+      "answer": "yes",
+      "raw_score": 1,
+      "max_score": 1,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Завершение».",
+      "evidence": [
+        {
+          "msg_index": 0,
+          "quote": "Good morning, this is Daniyar from support. How can I help?"
+        }
+      ],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 5,
+      "effective_weight": 5.0,
+      "weighted_score": 5.0
+    },
+    {
+      "criterion_id": "gross_errors",
+      "answer": "no",
+      "raw_score": null,
+      "max_score": null,
+      "flags": [],
+      "explanation": "[MOCK] Объяснение по критерию «Грубые ошибки».",
+      "evidence": [],
+      "checked_range": null,
+      "na_reason": null,
+      "source": "llm",
+      "validated": true,
+      "weight": 0,
+      "effective_weight": 0.0,
+      "weighted_score": 0.0
+    }
+  ],
+  "total_score": 56.0,
+  "critical_error": false,
+  "critical_flags": [],
+  "section_scores": [
+    {
+      "section_id": "start",
+      "score": 100.0
+    },
+    {
+      "section_id": "security",
+      "score": 12.5
+    },
+    {
+      "section_id": "conduct",
+      "score": 74.29
+    }
+  ],
+  "created_at": "2026-11-07T07:41:05+00:00",
+  "id": "ev_fixture_call"
+}

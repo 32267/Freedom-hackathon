@@ -1,7 +1,7 @@
 # Контракты (источник правды)
 
 Владелец: Ислам/Claude. Изменения — только PR с `[contract]`.
-Версия: v0.1 — ⚠️ поля чек-листа уточнить по PDF с 8 критериями (шкалы, правила N/A, округление).
+Версия: v1 — чек-лист сверен с PDF организаторов.
 
 ## 1. Модели данных
 
@@ -25,50 +25,62 @@ Backend при отдаче добавляет **производные** пол
 - `transcript[i].offset_sec` — только у `voice call`: секунды от первой реплики (для перемотки `<audio>`).
 
 ### Checklist
+Эталон — [`checklists/default.json`](../checklists/default.json) (8 критериев из PDF, см. [CHECKLIST.md](CHECKLIST.md)).
 ```json
 {
-  "id": "default-v1",
-  "name": "Базовый чек-лист",
+  "id": "default",
+  "name": "Чек-лист качества чатов (Freedom Broker)",
   "version": 1,
-  "rounding": "half_up_1",            // правило округления из PDF
-  "critical_policy": "flag",          // "flag" — только отметка | "zero_total" — итог = 0 (взять из PDF)
-  "sections": [{"id": "greeting", "name": "Приветствие"}],
+  "rounding": "half_up_2",            // итог до 2 знаков
+  "critical_policy": "flag",          // грубая ошибка не влияет на балл, только отметка ("zero_total" — обнулять)
+  "notes": ["Общие правила для LLM и UI: «Нет» vs N/A, как ссылаться на реплику..."],
+  "sections": [{"id": "start", "name": "Начало и понимание запроса"}],
   "criteria": [
     {
-      "id": "c1",
-      "section_id": "greeting",
-      "title": "Оператор поздоровался и представился",
-      "description": "Подробная формулировка для LLM",
-      "answer_type": "binary",        // "binary" | "scale"
-      "scale": null,                  // для scale: {"min": 0, "max": 5}
-      "weight": 10,
+      "id": "needs",                  // стабильный slug, латиница
+      "section_id": "start",
+      "title": "Выявление потребности",
+      "description": "Да — оператор учёл известные детали и уточнил недостающее до ответа.",
+      "answer_type": "binary",        // "binary" | "scale" | "flag"
+      "scale": null,
+      "weight": 15,
       "na_allowed": true,
-      "na_rule": "Если диалог начат ботом и оператор подключился позже...",
-      "is_critical": false            // грубая ошибка → флаг в итоге
-    }
+      "na_rule": "Данных для ответа хватало с самого начала."
+    },
+    {
+      "id": "consultation", "answer_type": "scale", "weight": 20,
+      "scale": {"min": 0, "max": 20, "steps": [{"value": 20, "label": "Все существенные вопросы закрыты..."}]}
+    },                                // ответ — ТОЛЬКО одна из steps[].value
+    {
+      "id": "gross_errors", "answer_type": "flag", "weight": 0,
+      "flag_types": [{"id": "insult", "label": "Оскорбление клиента"}]
+    }                                 // flag: "yes" = нарушение найдено; в балл не входит
   ]
 }
 ```
 Сохранение меняет `version` (+1); старые оценки ссылаются на свою версию.
+Редактор чек-листа должен уметь всё это (на контроле организаторы заменят один критерий):
+добавить/удалить/изменить критерий, тип, вес, ступени шкалы с подписями, N/A + условие, секцию.
 
-### Формула итога (реализует `backend/scoring/math.py`, правила уточнить по PDF)
+### Формула итога (`backend/scoring/math.py`, по «Порядку расчёта» PDF)
 ```
-norm_i      = binary: yes→1, no→0 | scale: (value - min) / (max - min)
-applicable  = критерии с answer != "na"
-eff_w_i     = weight_i / Σ weight_j (j ∈ applicable) × 100
+norm_i      = binary: yes→1, no→0 | scale: value / max (верхняя ступень = полный вес)
+scored      = критерии с answer_type != "flag" и weight > 0
+applicable  = scored с answer != "na"         # N/A только если na_allowed, иначе ошибка
+eff_w_i     = weight_i / Σ weight_j (j ∈ applicable) × 100     # максимум остаётся 100
 weighted_i  = norm_i × eff_w_i
-total       = round(Σ weighted_i)             # по checklist.rounding
-section_s   = та же формула внутри секции (0..100)
-critical    = есть is_critical с answer "no" (или ниже порога шкалы) → critical_error = true
+total       = round_half_up(Σ weighted_i, 2)  # нет applicable → null («итог не рассчитывается»)
+section_s   = та же формула внутри секции (0..100); секции только из scored-критериев
+critical    = любой flag с answer "yes" → critical_error = true, critical_flags = [...]
 ```
-Все критерии N/A → `total = null`, в UI «Не применимо».
+Пример: identification = N/A, contact = Нет, остальное Да → 1 − 10/80 = **87.5**.
 
 ### Evaluation
 ```json
 {
   "id": "ev_123",
   "conversation_id": "p1-ru-001",
-  "checklist_id": "default-v1",
+  "checklist_id": "default",
   "checklist_version": 1,
   "status": "done",                   // queued | running | done | error
   "model": "gpt-4.1-mini",
@@ -77,11 +89,12 @@ critical    = есть is_critical с answer "no" (или ниже порога 
   "cache_key": "sha256(dialog)+checklist_id+version",   // повторная оценка → из кэша
   "total_score": 87.5,                // 0..100 после перераспределения N/A
   "critical_error": false,
-  "section_scores": [{"section_id": "greeting", "score": 100}],
+  "critical_flags": [],               // id из flag_types, напр. ["bypass"]
+  "section_scores": [{"section_id": "start", "score": 100}],
   "results": [
     {
-      "criterion_id": "c1",
-      "answer": "yes",                // binary: yes|no|na; scale: число|"na"
+      "criterion_id": "contact",
+      "answer": "yes",                // binary: yes|no|na; scale: одна из steps|"na"; flag: yes|no
       "raw_score": 1,
       "max_score": 1,
       "weight": 10,
@@ -91,7 +104,8 @@ critical    = есть is_critical с answer "no" (или ниже порога 
       "evidence": [{"msg_index": 0, "quote": "Здравствуйте!"}],   // quote обязана быть подстрокой реплики
       "source": "llm",                // "llm" | "rule" (посчитано кодом) | "appeal" (изменено проверяющим)
       "validated": true,              // прошло проверку доказательств
-      "checked_range": null,          // если действие пропущено: {"from": 0, "to": 12}
+      "flags": [],                    // только для flag: какие нарушения найдены
+      "checked_range": null,          // если действие пропущено: где ожидалось {"from": 0, "to": 12}
       "na_reason": null
     }
   ],
@@ -104,7 +118,7 @@ critical    = есть is_critical с answer "no" (или ниже порога 
 {
   "id": "ap_1",
   "evaluation_id": "ev_123",
-  "criterion_id": "c1",
+  "criterion_id": "contact",
   "comment": "Оператор представился во 2-й реплике",
   "status": "open",                   // open | confirmed | changed
   "original": {"answer": "no", "weighted_score": 0},
@@ -147,7 +161,7 @@ def recompute(evaluation: dict, checklist: dict) -> dict: ... # пересчёт
 - имя тега `cqa-<экран>`, атрибуты: `api-base` (по умолчанию `/api`), id сущности (`conversation-id`, `evaluation-id`);
 - общение между компонентами — `CustomEvent` (`cqa:open-dialog`, `cqa:evaluated`, `cqa:appeal-decided`), без глобальных переменных;
 - стили — внутри компонента (Shadow DOM или префикс `cqa-`);
-- `frontend/api.js` — единственное место с `fetch`; при `?mock=1` отдаёт данные из `fixtures/`.
+- `frontend/api.js` — единственное место с `fetch`; при `?mock=1` отдаёт `fixtures/*.json` (диалоги, оценки) и `checklists/default.json`.
 
 Экраны:
 1. `checklist-editor` — критерии, вес, тип, шкала, N/A, секции; сохранить версию.
