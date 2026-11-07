@@ -87,18 +87,20 @@ def test_opt_in_debug_capture_saves_truncated_completion(monkeypatch, tmp_path):
     }))
 
     with pytest.raises(LLMOutputError, match="finish_reason=length"):
-        call_json("system", "Диалог dev-ru-chat-001 · ...", {
+        call_json("system", "Диалог dev-ru-chat-001 · ...\nПрошлый ответ по этим критериям не прошёл проверку:", {
             "type": "object",
             "properties": {"criteria": {"type": "object", "properties": {"contact": {"type": "object"}}}},
         }, "local")
 
     saved = json.loads(next(tmp_path.glob("*.json")).read_text(encoding="utf-8"))
+    assert saved["attempt"] == 2
     assert saved["response"]["content"] == raw
     assert saved["response"]["finish_reason"] == "length"
     assert saved["response"]["usage"]["completion_tokens"] == 4096
 
 
 def test_debug_capture_is_disabled_by_default(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("LOCAL_LLM_URL", "http://localhost:11434/v1")
     monkeypatch.delenv("LOCAL_LLM_DEBUG_DIR", raising=False)
     monkeypatch.setattr(httpx, "post", lambda *a, **k: Resp(200, {
