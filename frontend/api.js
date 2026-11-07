@@ -83,6 +83,16 @@ export const api = {
     return summarize(dialog, d.evaluations.find(e => e.conversation_id === dialog.conversation_id));
   },
   uploadDialogs: payload => (MOCK_MODE ? demoOnly() : post("/dialogs/upload", payload)),
+  async uploadAudio(file, fields = {}) {
+    if (MOCK_MODE) return demoOnly();
+    const form = new FormData();
+    form.append("file", file);
+    Object.entries(fields).forEach(([k, v]) => v && form.append(k, v));
+    const response = await fetch(`${apiBase()}/dialogs/upload-audio`, { method: "POST", body: form });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `Ошибка API: ${response.status}`);
+    return body;
+  },
   importDataset: groupId => (MOCK_MODE ? demoOnly() : post(`/datasets/${enc(groupId)}/import`)),
 
   // оценки

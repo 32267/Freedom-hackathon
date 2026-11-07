@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import NoReturn
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend import db
@@ -98,7 +98,7 @@ def _enrich(d: dict) -> dict:
     first = t[0]["timestamp"] if t else ""
     out = {**d, "transcript": [{**m, "msg_index": i, **({"offset_sec": _offset(m["timestamp"], first)} if voice else {})}
                                for i, m in enumerate(t)]}
-    if d.get("audio_url"):
+    if d.get("audio_url") or d.get("audio_local"):
         out["audio_src"] = f"/api/dialogs/{urllib.parse.quote(d['conversation_id'])}/audio"
     return out
 
@@ -150,9 +150,10 @@ def dialog_audio(cid: str):
     (FileResponse поддерживает Range → перемотка в <audio> работает)."""
     d = db.get_dialog(cid) or _err(404, "Диалог не найден")
     for folder in audio_dirs():
-        f = folder / f"{cid}.mp3"
-        if f.exists():
-            return FileResponse(f, media_type="audio/mpeg")
+        for ext, mime in AUDIO_TYPES.items():
+            f = folder / f"{cid}{ext}"
+            if f.exists():
+                return FileResponse(f, media_type=mime)
     if not d.get("audio_url"):
         _err(404, "У диалога нет записи")
     target = audio_dirs()[0] / f"{cid}.mp3"
@@ -166,6 +167,54 @@ def dialog_audio(cid: str):
     except Exception as e:  # noqa: BLE001
         _err(502, f"Не удалось получить запись: {e}")
     return FileResponse(target, media_type="audio/mpeg")
+
+
+AUDIO_TYPES = {".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".ogg": "audio/ogg", ".webm": "audio/webm"}
+
+
+def _safe_id(name: str) -> str:
+    base = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(name).stem).strip("-.") or "audio"
+    return base[:60]
+
+
+def _run_audio_job(job: dict, path: Path, cid: str, language: str | None) -> None:
+    from backend.asr import audio_to_dialog
+    try:
+        job["stage"] = "распознавание речи"
+        dialog = audio_to_dialog(str(path), cid, language)
+        dialog["audio_local"] = True
+        if len(dialog["transcript"]) <= 1:
+            raise ValueError("в записи не распознано ни одной реплики")
+        db.upsert_dialog(dialog, "UPLOAD")
+        with _jobs_lock:
+            job.update(status="done", done=1, conversation_id=cid, turns=len(dialog["transcript"]), language=dialog["language"])
+    except Exception as e:  # noqa: BLE001
+        with _jobs_lock:
+            job.update(status="done", failed=1, errors=[f"{cid}: {e}"[:300]])
+    finally:
+        job["finished_at"] = db.now()
+
+
+@router.post("/dialogs/upload-audio")
+async def upload_audio(file: UploadFile = File(...), conversation_id: str = Form(""), language: str = Form("")):
+    """MP3/WAV/M4A → расшифровка (Whisper) → разметка ролей → новый диалог-звонок. Возвращает задачу:
+    прогресс — GET /api/jobs/{job_id}, по готовности в ней conversation_id."""
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in AUDIO_TYPES:
+        _err(422, f"Поддерживаются аудиофайлы: {', '.join(AUDIO_TYPES)}")
+    cid = _safe_id(conversation_id or file.filename or "audio")
+    if db.get_dialog(cid):
+        cid = f"{cid}-{db.new_id('a')[-6:]}"
+    folder = audio_dirs()[0]
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{cid}{ext}"
+    path.write_bytes(await file.read())
+    job = {"job_id": db.new_id("job"), "kind": "audio", "total": 1, "done": 0, "failed": 0, "errors": [],
+           "status": "running", "stage": "загрузка", "conversation_id": None, "started_at": db.now()}
+    with _jobs_lock:
+        _jobs[job["job_id"]] = job
+    threading.Thread(target=_run_audio_job, args=(job, path, cid, language or None), daemon=True).start()
+    return job
 
 
 @router.post("/dialogs/upload")

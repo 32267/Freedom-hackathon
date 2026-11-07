@@ -146,6 +146,33 @@ scripts/tunnel.sh
 (скрипт создаст его сам); локально на `localhost` пароль не спрашивается. Ссылка живёт, пока открыт туннель (Ctrl+C — закрыть).
 Постоянный адрес на своём домене — именованный туннель: `cloudflared tunnel login` → `cloudflared tunnel create cqa` → `cloudflared tunnel route dns cqa <домен>`.
 
+## Сдача результатов (Приложение к гайду, JSON 1.0)
+
+Два файла в открытом репозитории до стоп-кода: `results/dev/results.json` (DEV: 60 чатов + 5 звонков) и
+`results/prod/results.json` (ровно 10 контрольных чатов). Формат и правила проверяет `tools/export_results.py`.
+
+**DEV** — один раз, по действующему чек-листу:
+```bash
+curl -X POST localhost:8000/api/evaluations/batch -H 'Content-Type: application/json' -d '{"group_id": "DEV", "only_missing": true}'
+python tools/export_results.py --set dev          # → results/dev/results.json
+```
+
+**Контрольный набор** (час 23 → стоп-код через час; group_id сообщат организаторы):
+```bash
+curl -X POST localhost:8000/api/datasets/<group_id>/import
+curl -X POST localhost:8000/api/evaluations/batch -H 'Content-Type: application/json' -d '{"group_id": "<group_id>"}'
+curl localhost:8000/api/jobs/<job_id>                       # ждём status=done
+python tools/export_results.py --set prod --group <group_id>
+git add results && git commit -m "results: prod" && git push   # локального commit недостаточно — нужен push
+```
+То же из интерфейса: «Диалоги» → «Импорт набора» (галочка «сразу оценить») → затем экспорт командой выше.
+Диалог, который не удалось оценить, попадает в файл со `status: "error"` — его нельзя скрывать или заменять нулём.
+`TEAM_NAME` и `MODEL_MODE` (`local` / `external_api` / `hybrid`) — в `.env`.
+
+**Загрузка своих записей звонков:** «Диалоги» → «Загрузить JSON или аудио» → MP3/WAV/M4A. Запись расшифровывается
+локально (faster-whisper, модель `ASR_MODEL=small`, скачивается при первом запуске), роли «оператор / клиент / бот»
+размечает модель-оценщик, звонок появляется в списке с плеером.
+
 Контрольный набор (час 23):
 ```bash
 curl -X POST localhost:8000/api/datasets/<group_id>/import

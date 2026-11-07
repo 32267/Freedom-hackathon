@@ -133,3 +133,26 @@ def test_basic_auth_when_enabled(client, monkeypatch):
     assert client.get("/frontend/", headers=cf).status_code == 401
     assert client.get("/api/dialogs", headers=cf, auth=("jury", "wrong")).status_code == 401
     assert client.get("/api/dialogs", headers=cf, auth=("jury", "secret")).status_code == 200
+
+
+def test_upload_audio_creates_call(client, monkeypatch):
+    import backend.asr as asr
+
+    def fake(path, cid, language=None):
+        return {"conversation_id": cid, "channel": "voice call", "language": "RU", "audio_url": None,
+                "transcript": [{"timestamp": "2026-11-07T10:00:00+00:00", "speaker": "system", "text": "загружено"},
+                               {"timestamp": "2026-11-07T10:00:03+00:00", "speaker": "operator", "text": "Здравствуйте"}]}
+    monkeypatch.setattr(asr, "audio_to_dialog", fake)
+    bad = client.post("/api/dialogs/upload-audio", files={"file": ("x.txt", b"hi", "text/plain")})
+    assert bad.status_code == 422
+    job = client.post("/api/dialogs/upload-audio", files={"file": ("Звонок 1.mp3", b"ID3" + b"0" * 500, "audio/mpeg")},
+                      data={"conversation_id": "my-call"}).json()
+    for _ in range(50):
+        st = client.get(f"/api/jobs/{job['job_id']}").json()
+        if st["status"] == "done":
+            break
+        time.sleep(0.05)
+    assert st["conversation_id"] == "my-call" and st["failed"] == 0
+    d = client.get("/api/dialogs/my-call").json()
+    assert d["channel"] == "voice call" and d["audio_src"].endswith("/audio") and d["transcript"][1]["offset_sec"] == 3.0
+    assert client.get("/api/dialogs/my-call/audio").headers["content-type"] == "audio/mpeg"

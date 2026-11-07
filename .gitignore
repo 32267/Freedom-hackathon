@@ -20,3 +20,7 @@ invoke*.json
 # Локальная выгрузка диалогов, записей и оценок (данные организаторов)
 dataset/
 data/*.log
+data/backup/
+data/audio/
+*.wav
+*.m4a

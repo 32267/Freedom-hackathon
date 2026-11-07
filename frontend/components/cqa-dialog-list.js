@@ -7,7 +7,7 @@ class CqaDialogList extends HTMLElement {
       <div class="cqa-page-head"><div><p class="cqa-eyebrow">БАЗА ДИАЛОГОВ</p><h1 class="cqa-page-title">Диалоги</h1>
         <p class="cqa-subtitle">Чаты и звонки клиентов Freedom Broker: загрузка, импорт набора и пакетная оценка.</p></div>
         <div class="cqa-row">
-          <label class="cqa-btn" title="JSON одного диалога, списка или ответа API организаторов">⤒ Загрузить JSON<input type="file" accept=".json,application/json" id="file" hidden></label>
+          <label class="cqa-btn" title="JSON диалога / ответа API организаторов или запись звонка MP3, WAV, M4A">⤒ Загрузить JSON или аудио<input type="file" accept=".json,application/json,.mp3,.wav,.m4a,.ogg,.webm,audio/*" id="file" hidden></label>
           <button class="cqa-btn" id="import">⇣ Импорт набора</button>
         </div></div>
       <div class="cqa-card cqa-panel" style="margin-bottom:14px">
@@ -115,6 +115,7 @@ class CqaDialogList extends HTMLElement {
 
   async upload(file) {
     if (!file) return;
+    if (/\.(mp3|wav|m4a|ogg|webm)$/i.test(file.name)) { await this.uploadAudio(file); this.querySelector("#file").value = ""; return; }
     try {
       const data = JSON.parse(await file.text());
       const res = await api.uploadDialogs(data);
@@ -123,6 +124,33 @@ class CqaDialogList extends HTMLElement {
       await this.load();
     } catch (e) { toast(e instanceof SyntaxError ? "Файл не является JSON" : e.message, true); }
     this.querySelector("#file").value = "";
+  }
+
+  async uploadAudio(file) {
+    const modal = await confirmDialog(`<h3>Загрузка записи звонка</h3>
+      <p class="cqa-muted" style="font-size:13px">«${esc(file.name)}» будет расшифрован (Whisper), реплики размечены по ролям, звонок появится в списке.
+        Обычно 30–90 секунд на 5 минут записи.</p>
+      <div class="cqa-field"><label class="cqa-label">ID диалога (необязательно)</label><input class="cqa-input" id="cid" placeholder="по имени файла"></div>
+      <div class="cqa-field"><label class="cqa-label">Язык</label><select class="cqa-select" id="lang" style="width:100%">
+        <option value="">Определить автоматически</option><option value="RU">Русский</option><option value="KZ">Қазақша</option><option value="EN">English</option></select></div>`);
+    if (!modal) return;
+    const box = document.createElement("div");
+    box.className = "cqa-card cqa-job";
+    box.innerHTML = `<strong>Распознаём «${esc(file.name)}»…</strong><div class="cqa-bar-track"><div class="cqa-bar-fill" style="width:35%"></div></div><div class="cqa-panel-sub">Загрузка и расшифровка записи</div>`;
+    document.body.append(box);
+    try {
+      let job = await api.uploadAudio(file, { conversation_id: modal.querySelector("#cid").value.trim(), language: modal.querySelector("#lang").value });
+      while (job.status !== "done") {
+        await new Promise(r => setTimeout(r, 2000));
+        job = await api.getJob(job.job_id);
+        box.querySelector(".cqa-panel-sub").textContent = `Этап: ${job.stage || "обработка"}`;
+      }
+      box.remove();
+      if (job.failed) throw new Error(job.errors?.[0] || "Не удалось распознать запись");
+      toast(`Звонок ${job.conversation_id} добавлен: ${job.turns} реплик, язык ${job.language}`);
+      this.groupsFilled = false;
+      emit(this, "open-dialog", { conversationId: job.conversation_id });
+    } catch (e) { box.remove(); toast(e.message, true); }
   }
 
   async importSet() {
