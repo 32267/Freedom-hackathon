@@ -73,29 +73,39 @@ def test_quote_validation_fixes_index_and_rejects_fake():
     assert any("не найдена" in p for p in probs)
 
 
-def test_happy_path_one_call(monkeypatch):
-    f, calls = fake([GOOD])
+def _groups(mapping):
+    ids = list(BY_ID)
+    return [
+        {cid: mapping[cid] for cid in ids[start:start + llm_eval.CRITERIA_PER_REQUEST]}
+        for start in range(0, len(ids), llm_eval.CRITERIA_PER_REQUEST)
+    ]
+
+
+def test_happy_path_grouped_calls(monkeypatch):
+    f, calls = fake(_groups(GOOD))
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == 1 and all(r["validated"] for r in ev["results"])
+    assert len(calls) == 4 and all(r["validated"] for r in ev["results"])
+    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 2 for c in calls)
     # identification N/A → 80 весов; consultation 15/20 → 15 из 20 → итог 75/80
-    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.01
+    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.04
 
 
 def test_retry_only_bad_criteria(monkeypatch):
     bad = {**GOOD, "closing": good("yes", quote="До свидания и всего доброго")}
-    f, calls = fake([bad, {"closing": good("yes", idx=7, quote="Хорошего дня")}])
+    grouped = _groups(bad)
+    f, calls = fake(grouped + [{"closing": good("yes", idx=7, quote="Хорошего дня")}])
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == 2
-    assert list(calls[1]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
-    assert "не найдена" in calls[1]["user"]
-    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 2
+    assert len(calls) == 5
+    assert list(calls[4]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
+    assert "не найдена" in calls[4]["user"]
+    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 5
 
 
 def test_still_bad_after_retry_is_marked(monkeypatch):
     bad = {**GOOD, "closing": good("yes", quote="выдумка")}
-    f, _ = fake([bad, {"closing": good("yes", quote="снова выдумка")}])
+    f, _ = fake(_groups(bad) + [{"closing": good("yes", quote="снова выдумка")}])
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
     closing = next(r for r in ev["results"] if r["criterion_id"] == "closing")
@@ -104,7 +114,7 @@ def test_still_bad_after_retry_is_marked(monkeypatch):
 
 def test_flag_counts_as_critical(monkeypatch):
     resp = {**GOOD, "gross_errors": good("yes", idx=5, quote="Часть средств заблокирована", flags=["confidential"])}
-    f, _ = fake([resp])
+    f, _ = fake(_groups(resp))
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
     assert ev["critical_error"] and ev["critical_flags"] == ["confidential"] and ev["total_score"] == 93.75
@@ -125,6 +135,12 @@ def test_three_languages_required_and_returned():
     _, probs = check_criterion(good("yes", explanation={"ru": "Поздоровался", "kz": "", "en": ""}),
                                BY_ID["contact"], CHAT["transcript"])
     assert any("kz, en" in p for p in probs)
+
+
+def test_system_prompt_can_be_limited_to_group():
+    selected = build_system(CL, only=["contact", "needs"])
+    assert "### contact" in selected and "### needs" in selected
+    assert "### consultation" not in selected and "### gross_errors" not in selected
 
 
 def test_schema_asks_for_three_languages():
