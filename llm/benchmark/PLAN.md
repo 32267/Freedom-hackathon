@@ -6,41 +6,44 @@ Branch: `islam/model-benchmark`
 
 ## Decision
 
-**Primary candidate: `Qwen/Qwen3.5-9B`, quantized to 4-bit (Q4).**
+**Primary candidate: Qwen3.5-4B, 4-bit quantized for MLX.**
 
-Why it is the first model to test:
-- The official model card describes 9B parameters and support for 201 languages and dialects, which makes it the strongest language-coverage starting point for RU/KZ/EN in this shortlist.
-- A 9B model in Q4 is a plausible inference target for an RTX 3060 12 GB, subject to the actual runtime, context length, KV cache, and available VRAM.
-- It is open-weight and can later be adapted with LoRA/QLoRA if human-labelled CQA data justifies fine-tuning.
+The benchmark host is now confirmed:
+- Apple Mac with **M5**
+- **16 GB unified memory**
+- **macOS 26.6.2**
+- Native local inference target: **Apple Silicon / Metal using MLX**
 
-This is a **candidate recommendation, not a quality result**. No CQA-specific benchmark has been run yet.
+The previously reported RTX 3060 12 GB is not part of this native Mac configuration. It should only be included as a separate benchmark target if it is available in another Windows/Linux machine or through a remote inference endpoint.
 
-## Hardware assumptions to confirm
+A 4B-class model is the practical starting point for 16 GB unified memory. This leaves more room for the OS, runtime, KV cache, and long CQA transcripts than beginning with an 8B/9B model. This is a **candidate recommendation, not a quality result**. No CQA-specific benchmark has been run yet.
 
-The reported configuration is: Apple machine, RTX 3060 12 GB, 16 GB system RAM.
-
-These details may describe two different machines. An RTX 3060 is a CUDA/NVIDIA GPU and is not normally available as a native GPU backend on macOS/Apple Silicon. Before choosing the runtime, confirm whether:
-1. the RTX 3060 is in a separate Windows/Linux PC (recommended benchmark host), or
-2. the benchmark host is an Apple Silicon Mac, in which case use Metal/MLX and the Mac's unified memory; or
-3. the GPU is accessed remotely.
-
-For the RTX 3060 host, start with a 4-bit quantized model, 4K–8K context, one request at a time, and leave VRAM headroom for the runtime/KV cache. Do not assume the full advertised context fits in 12 GB.
+macOS 26.6.2 is newer than the macOS 26.2 version floor previously identified for M5 Neural Accelerator optimizations. Actual use of those optimizations depends on the installed MLX/runtime and model implementation; do not assume that every MLX inference path uses the Neural Accelerators. Record the exact runtime and verify acceleration during the smoke test.
 
 ## Candidate matrix
 
-| Role | Model | Initial precision | Reason to include |
+| Role | Model | Initial precision/runtime | Reason to include |
 |---|---|---|---|
-| Primary | Qwen3.5-9B Instruct | Q4 | Explicit broad multilingual coverage; 9B-class quality target |
-| Smaller alternative | Gemma 4 E4B IT | Q4 | Compact local baseline; official Q4 memory estimate is about 4.5 GB before runtime/context overhead |
-| Previous-generation control | Qwen3-8B Instruct | Q4 | Helps measure whether the newer Qwen family improves our actual CQA task |
+| Primary | Qwen3.5-4B | 4-bit MLX | First candidate for multilingual RU/KZ/EN CQA within 16 GB |
+| Smaller alternative | Gemma 4 E2B | 4-bit MLX | Lower-memory comparison point |
+| Larger compact alternative | Gemma 4 E4B | 4-bit MLX | Tests whether a larger compact model improves evaluation quality |
 | API reference | Current configured Claude model | API | Reference point for quality, latency, and cost; not a local-model candidate |
 
 Model references:
-- Qwen3.5-9B: https://huggingface.co/Qwen/Qwen3.5-9B
-- Gemma 4 model card and memory table: https://ai.google.dev/gemma/docs/core/model_card_4
-- Qwen3-8B: https://huggingface.co/Qwen/Qwen3-8B
+- Qwen3.5-4B: https://huggingface.co/Qwen/Qwen3.5-4B
+- Gemma 4 model card and memory information: https://ai.google.dev/gemma/docs/core/model_card_4
 
-Gemma 4 E4B is a useful size/speed comparator, but its published language summary is broader than its explicit language list; we must measure Kazakh quality rather than assume parity with Qwen.
+Confirm the exact MLX-compatible repository/conversion and license for each candidate before downloading. Do not assume a standard Hugging Face checkpoint is directly loadable by MLX without conversion or a compatible MLX distribution.
+
+## Hardware and runtime constraints
+
+- Target host: M5 Mac, 16 GB unified memory, macOS 26.6.2.
+- Start with 4-bit weights and a **4K context**; test 8K only after measuring memory headroom and output quality.
+- Run one inference at a time for the baseline.
+- Record peak memory pressure / process memory, tokens per second, time to first token if available, and end-to-end latency.
+- Keep enough unified memory available for macOS and other processes. A model's weight-file size is not its total runtime memory requirement.
+- Use MLX/Metal as the initial local runtime. Validate structured JSON output against the existing provider contract before running the full dataset.
+- Treat M5 Neural Accelerator support as an implementation/runtime capability to verify, not an automatic consequence of using an M5 Mac.
 
 ## Evaluation data
 
@@ -48,7 +51,7 @@ The DEV set described in `docs/DATA.md` has 65 conversations: 30 RU chats, 15 KZ
 
 Create a human-reviewed gold set before ranking models:
 - Start with 15 conversations, covering RU/KZ/EN and chat/voice where available.
-- Include the translated parallel scenarios where available, but keep translations of the same scenario in the same split to avoid leakage.
+- Include translated parallel scenarios where available, but keep translations of the same scenario in the same split to avoid leakage.
 - Have a reviewer label each criterion, N/A, critical-error flags, and supporting message indices.
 - Keep at least 5 conversations as a held-out check; do not tune prompts against this holdout.
 - Expand toward 30–50 human-reviewed examples before treating small score differences as meaningful.
@@ -64,6 +67,7 @@ The 65-dialog DEV set is too small to train a model from scratch and is not suff
 4. Save raw model outputs as well as validated evaluator outputs. Never discard invalid JSON or invalid evidence from the report.
 5. Run the existing deterministic evidence validator after inference. A plausible explanation with a fabricated quote is a failure.
 6. Compare against human labels, not against another model's output.
+7. First run a 3–5 conversation smoke test across RU/KZ/EN; only proceed to the full DEV and gold sets after confirming output validity and stable memory use.
 
 ### Primary metrics
 
@@ -73,7 +77,7 @@ The 65-dialog DEV set is too small to train a model from scratch and is not suff
 - Evidence validity: percentage of evidence quotes found in the cited transcript message; also measure correct speaker/message attribution.
 - Score MAE against the human-reviewed total and criterion scores.
 - Structured-output validity and evaluator completion rate.
-- Median and p95 latency per conversation; peak VRAM/RAM; tokens/sec where available.
+- Median and p95 latency per conversation; peak memory use; tokens/sec where available.
 - Cost per conversation for the API reference.
 
 Do not collapse everything into one score without showing the per-language and critical-error results. A model that is strong in English but weak in Kazakh is not an acceptable overall winner for this project.
@@ -84,16 +88,17 @@ A local candidate is eligible for further development only if:
 - it returns schema-valid outputs reliably;
 - evidence validity is effectively 100% after deterministic validation (invalid evidence must not silently pass);
 - it does not materially regress Kazakh or critical-error recall versus the API reference on the gold set;
-- it fits the target machine at the agreed context length without routine out-of-memory failures;
+- it fits the M5 Mac at the agreed context length without routine memory-pressure or out-of-memory failures;
 - latency is acceptable for batch evaluation.
 
 If the gold set is too small to distinguish candidates, report the result as inconclusive and label more examples. Do not fine-tune to compensate for ambiguous checklist rules.
 
 ## Implementation sequence
 
-### Phase 0 — now: benchmark specification
-- [x] Select first candidate and shortlist.
-- [x] Record hardware ambiguity and memory constraints.
+### Phase 0 — benchmark specification
+- [x] Confirm target hardware: M5 Mac, 16 GB unified memory, macOS 26.6.2.
+- [x] Select MLX/Metal as the initial local runtime.
+- [x] Select a 4B-class primary candidate and shortlist.
 - [x] Define dataset, metrics, and acceptance gates.
 
 ### Phase 1 — benchmark harness
@@ -104,13 +109,14 @@ If the gold set is too small to distinguish candidates, report the result as inc
 - [ ] Keep the existing `backend/scoring/validate.py` as the evidence-validation authority.
 
 ### Phase 2 — local inference
-- [ ] Confirm benchmark host OS and GPU availability.
-- [ ] Select an inference server that supports the model architecture and the project's required structured output.
-- [ ] Verify JSON-schema-constrained output with the existing `backend/llm/local_provider.py` contract before running the full set.
-- [ ] Record actual VRAM/RAM and latency at 4K and 8K context.
+- [ ] Install and record a compatible MLX runtime and candidate model packages/checkpoints.
+- [ ] Run a 3–5 conversation RU/KZ/EN smoke test on the M5 Mac.
+- [ ] Verify JSON-schema-constrained output with the existing `backend/llm/local_provider.py` contract.
+- [ ] Measure memory use and latency at 4K context; test 8K only if headroom allows.
+- [ ] Verify whether the chosen runtime actually uses M5 Neural Accelerator optimizations; record the result without assuming support.
 
 ### Phase 3 — decision
-- [ ] Run the same gold set against Qwen3.5-9B, Gemma 4 E4B, Qwen3-8B, and the configured Claude reference.
+- [ ] Run the same gold set against Qwen3.5-4B, Gemma 4 E2B, Gemma 4 E4B, and the configured Claude reference.
 - [ ] Publish per-language and per-criterion comparison.
 - [ ] Select the model only after reviewing evidence quality and critical-error recall.
 
@@ -129,8 +135,8 @@ python -m llm.benchmark run \
   --dialogs data/DEV.json \
   --checklist checklists/default.json \
   --gold llm/data/gold.jsonl \
-  --model qwen3.5-9b-q4 \
-  --out llm/runs/qwen3.5-9b-q4.jsonl
+  --model qwen3.5-4b-mlx-q4 \
+  --out llm/runs/qwen3.5-4b-mlx-q4.jsonl
 ```
 
 And a separate report command:
@@ -138,8 +144,8 @@ And a separate report command:
 ```bash
 python -m llm.benchmark report \
   --gold llm/data/gold.jsonl \
-  --predictions llm/runs/qwen3.5-9b-q4.jsonl \
-  --out llm/runs/qwen3.5-9b-q4-report.json
+  --predictions llm/runs/qwen3.5-4b-mlx-q4.jsonl \
+  --out llm/runs/qwen3.5-4b-mlx-q4-report.json
 ```
 
 These commands describe the intended interface; the CLI is not implemented yet.
