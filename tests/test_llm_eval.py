@@ -81,12 +81,12 @@ def _groups(mapping):
     ]
 
 
-def test_happy_path_grouped_calls(monkeypatch):
+def test_happy_path_one_criterion_per_call(monkeypatch):
     f, calls = fake(_groups(GOOD))
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == 4 and all(r["validated"] for r in ev["results"])
-    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 2 for c in calls)
+    assert len(calls) == len(BY_ID) == 8 and all(r["validated"] for r in ev["results"])
+    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 1 for c in calls)
     # identification N/A → 80 весов; consultation 15/20 → 15 из 20 → итог 75/80
     assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.04
 
@@ -97,10 +97,11 @@ def test_retry_only_bad_criteria(monkeypatch):
     f, calls = fake(grouped + [{"closing": good("yes", idx=7, quote="Хорошего дня")}])
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == 5
-    assert list(calls[4]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
-    assert "не найдена" in calls[4]["user"]
-    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 5
+    assert len(calls) == 9
+    assert list(calls[8]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
+    assert "не найдена" in calls[8]["user"]
+    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 1 for c in calls)
+    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 9
 
 
 def test_still_bad_after_retry_is_marked(monkeypatch):
