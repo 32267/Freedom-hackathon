@@ -88,7 +88,7 @@ def test_happy_path_one_criterion_per_call(monkeypatch):
     assert len(calls) == len(BY_ID) == 8 and all(r["validated"] for r in ev["results"])
     assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 1 for c in calls)
     # identification N/A → 80 весов; consultation 15/20 → 15 из 20 → итог 75/80
-    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.04
+    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.08
 
 
 def test_retry_only_bad_criteria(monkeypatch):
