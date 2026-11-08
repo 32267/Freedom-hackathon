@@ -8,7 +8,8 @@ LABELS = {
     "claude_cli": ("Claude (подписка)", "subscription"),
     "codex_cli": ("Codex (подписка ChatGPT)", "subscription"),
     "anthropic": ("Claude API", "api"),
-    "local": ("Своя модель", "local"),
+    "local": ("Своя VLM", "local"),
+    "local_lm": ("Своя текстовая LM", "local"),
 }
 
 # Готовые варианты для выпадающего списка на сайте; providers — строка в формате LLM_PROVIDERS.
@@ -35,7 +36,9 @@ def _availability(spec: str) -> tuple[bool, str]:
     elif kind == "anthropic" and not os.getenv("ANTHROPIC_API_KEY", "").strip():
         return False, "нет ANTHROPIC_API_KEY"
     elif kind == "local" and not os.getenv("LOCAL_LLM_URL", "").strip():
-        return False, "своя модель ещё не подключена (LOCAL_LLM_URL)"
+        return False, "VLM ещё не подключена (LOCAL_LLM_URL)"
+    elif kind == "local_lm" and not os.getenv("LOCAL_TEXT_LLM_URL", "").strip():
+        return False, "текстовая LM ещё не подключена (LOCAL_TEXT_LLM_URL)"
     elif kind not in LABELS:
         return False, "неизвестный провайдер"
     if not is_alive(spec):
@@ -46,7 +49,7 @@ def _availability(spec: str) -> tuple[bool, str]:
 def list_providers() -> dict:
     """Ответ для GET /api/llm/providers."""
     configured = [s for tier in provider_tiers() for s in tier]
-    specs = list(dict.fromkeys(configured + ["claude_cli", "codex_cli", "anthropic", "local"]))
+    specs = list(dict.fromkeys(configured + ["claude_cli", "codex_cli", "anthropic", "local", "local_lm"]))
     providers = []
     for spec in specs:
         kind, _, profile = spec.partition("@")
@@ -60,7 +63,7 @@ def list_providers() -> dict:
         item = dict(preset)
         if item["id"] == "hybrid":
             vlm = os.getenv("HYBRID_VLM_PROVIDER", "local").strip() or "local"
-            lm = os.getenv("HYBRID_LM_PROVIDER", "claude_cli").strip() or "claude_cli"
+            lm = os.getenv("HYBRID_LM_PROVIDER", "local_lm").strip() or "claude_cli"
             vlm_ok, vlm_reason = _availability(vlm)
             lm_ok, lm_reason = _availability(lm)
             item["available"] = vlm_ok and lm_ok
