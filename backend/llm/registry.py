@@ -18,7 +18,8 @@ PRESETS = [
     {"id": "codex", "label": "Только Codex", "providers": "codex_cli", "samples": 1},
     {"id": "compare", "label": "Claude + Codex — сравнить", "providers": "claude_cli, codex_cli", "samples": 2},
     {"id": "claude_x3", "label": "Claude ×3 — голосование", "providers": "claude_cli | codex_cli", "samples": 3},
-    {"id": "local", "label": "Своя модель", "providers": "local", "samples": 1},
+    {"id": "local", "label": "Своя модель (VLM)", "providers": "local", "samples": 1},
+    {"id": "hybrid", "label": "Гибрид: VLM + LM fallback", "providers": "hybrid", "samples": 1},
 ]
 
 
