@@ -47,7 +47,13 @@ For each output:
 python -m llm.benchmark report --gold llm/data/gold.jsonl --predictions llm/runs/hybrid/predictions.jsonl --checklist checklists/default.json --dialogs llm/data/DEV.json --out llm/reports/hybrid.json
 ```
 
-Run reports for LM-only, VLM-only, and hybrid outputs. Do not use DEV labels as gold
+Run reports for LM-only, VLM-only, and hybrid outputs, then compare hybrid against the LM-only report:
+
+```bash
+python -m llm.benchmark compare --baseline-report llm/reports/lm.json --candidate-report llm/reports/hybrid.json --out llm/reports/hybrid-vs-lm.json
+```
+
+The comparison exits with status 1 when the candidate loses more than 0.02 macro-F1 overall or 0.03 in any language. Do not use DEV labels as gold
 unless each record has been independently reviewed and added to the gold file.
 
 ## Initial release gates
