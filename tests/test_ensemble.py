@@ -123,9 +123,12 @@ def test_registry_lists_presets_and_availability(monkeypatch):
     from backend.llm import registry
     monkeypatch.setenv("LLM_PROVIDERS", "claude_cli | codex_cli")
     monkeypatch.delenv("LOCAL_LLM_URL", raising=False)
+    monkeypatch.delenv("LOCAL_TEXT_LLM_URL", raising=False)
     out = registry.list_providers()
     by = {p["id"]: p for p in out["providers"]}
     assert by["local"]["available"] is False and "LOCAL_LLM_URL" in by["local"]["reason"]
+    assert by["local_lm"]["available"] is False and "LOCAL_TEXT_LLM_URL" in by["local_lm"]["reason"]
+    assert "hybrid" in {p["id"] for p in out["presets"]}
     assert by["claude_cli"]["configured"] and {p["id"] for p in out["presets"]} >= {"claude", "codex", "compare"}
 
 
