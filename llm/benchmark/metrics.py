@@ -111,7 +111,7 @@ def build_report(gold_records, prediction_records, checklist):
                 scores_pred.append(float(value))
         if isinstance(prediction.get("latency_seconds"), (int, float)):
             latency.append(prediction["latency_seconds"])
-            if prediction.get("status") == "done" and prediction["latency_seconds"] <= 120:
+            if prediction.get("status") == "done" and not evaluation.get("needs_review") and prediction["latency_seconds"] <= 120:
                 completed_under_120 += 1
 
     for (lang, criterion_id), values in totals.items():
