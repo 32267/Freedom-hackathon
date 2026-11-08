@@ -54,14 +54,25 @@
       "verified_installed": false
     },
     {
-      "id": "hybrid-qwen-vlm-claude-fallback",
+      "id": "hybrid-qwen-vlm-local-lm-fallback",
       "provider": "hybrid",
-      "model": "HYBRID_VLM_PROVIDER + HYBRID_LM_PROVIDER",
-      "runtime": "criterion-scoped VLM first pass with LM fallback",
+      "model": "configured local VLM + configured local text-only LM",
+      "runtime": "local VLM first pass + separate OpenAI-compatible local LM fallback",
       "quantization": null,
       "context_length": 4096,
       "model_env": null,
       "license": "component model terms apply",
+      "verified_installed": false
+    },
+    {
+      "id": "local-text-lm-baseline",
+      "provider": "local_lm",
+      "model": "configured text-only LM",
+      "runtime": "OpenAI-compatible text-only LM server (e.g. MLX-LM)",
+      "quantization": null,
+      "context_length": 4096,
+      "model_env": "LOCAL_TEXT_LLM_MODEL",
+      "license": "configured model terms apply",
       "verified_installed": false
     }
   ]
