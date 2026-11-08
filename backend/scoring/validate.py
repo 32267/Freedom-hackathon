@@ -1,25 +1,27 @@
-"""Проверка ответа модели без LLM: ни одной выдуманной цитаты, N/A только где разрешён, шкала только из ступеней."""
+"""Проверка ответа модели без LLM: цитаты, N/A, шкалы и флаги."""
 import re
 import unicodedata
 
 
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKC", s).casefold()
-    s = re.sub(r"[«»\"“”„'`’‘]", "", s)
+    s = re.sub(r"[«»\"“”„'\x60’‘]", "", s)
     s = s.replace("…", "").replace("...", "")
     return re.sub(r"\s+", " ", s).strip(" .,!?;:-—")
 
 
 def _find_quote(quote: str, msg_index: int, transcript: list[dict]) -> int | None:
-    """Индекс реплики, где реально есть цитата: сначала указанная, затем ближайшие."""
+    """Подтверждает цитату только в реплике, на которую модель сослалась.
+
+    Не исправляет индекс поиском по всему диалогу: совпавшая фраза в другой
+    реплике не доказывает, что указанное сообщение поддерживает оценку.
+    """
+    if not isinstance(msg_index, int) or isinstance(msg_index, bool) or not 0 <= msg_index < len(transcript):
+        return None
     q = _norm(quote)
     if not q:
         return None
-    order = sorted(range(len(transcript)), key=lambda i: abs(i - msg_index))
-    for i in order:
-        if q in _norm(transcript[i]["text"]):
-            return i
-    return None
+    return msg_index if q in _norm(transcript[msg_index].get("text", "")) else None
 
 
 LANGS = ("ru", "kz", "en")
@@ -33,8 +35,7 @@ def _i18n(value) -> dict:
 
 
 def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel: str | None = None) -> tuple[dict, list[str]]:
-    """Возвращает (исправленный ответ, список проблем). Исправляет только безопасное: сдвиг msg_index.
-    channel — канал диалога: N/A, разрешённый только для некоторых каналов (na_channels), в других — ошибка."""
+    """Возвращает (исправленный ответ, список проблем); цитата обязана быть в указанной реплике."""
     problems = []
     n = len(transcript)
     answer = raw.get("answer")
@@ -49,19 +50,23 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
     evidence = []
     for ev in raw.get("evidence") or []:
         idx, quote = ev.get("msg_index"), ev.get("quote", "")
-        if not isinstance(idx, int):
-            problems.append(f"msg_index={idx!r} не число")
+        if not isinstance(idx, int) or isinstance(idx, bool) or not 0 <= idx < n:
+            problems.append(f"msg_index={idx!r} вне допустимого диапазона 0..{n - 1}")
             continue
-        found = _find_quote(quote, min(max(idx, 0), max(n - 1, 0)), transcript) if n else None
+        found = _find_quote(quote, idx, transcript)
         if found is None:
-            problems.append(f"цитата «{quote}» не найдена в транскрипте (msg_index {idx})")
+            elsewhere = _find_quote_anywhere(quote, transcript)
+            if elsewhere is not None:
+                problems.append(f"цитата есть в реплике {elsewhere}, но модель указала msg_index {idx}")
+            else:
+                problems.append(f"цитата «{quote}» не найдена в указанной реплике {idx}")
             continue
         evidence.append({"msg_index": found, "quote": quote})
 
     rng = raw.get("checked_range") or []
     checked = None
     if rng:
-        if len(rng) == 2 and all(isinstance(x, int) and 0 <= x < n for x in rng) and rng[0] <= rng[1]:
+        if len(rng) == 2 and all(isinstance(x, int) and not isinstance(x, bool) and 0 <= x < n for x in rng) and rng[0] <= rng[1]:
             checked = {"from": rng[0], "to": rng[1]}
         else:
             problems.append(f"checked_range={rng} некорректен (нужно [от, до] в пределах 0..{n - 1})")
@@ -91,7 +96,7 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
     if ctype != "flag" and is_shortfall and not evidence and checked is None:
         problems.append("снижение балла без доказательства и без checked_range")
     explanations = _i18n(raw.get("explanation"))
-    if answer == "na":                         # для N/A причина может служить обоснованием
+    if answer == "na":
         explanations = {lang: explanations[lang] or na_reasons[lang] for lang in LANGS}
     missing = [lang for lang in LANGS if not explanations[lang]]
     if missing:
@@ -108,11 +113,21 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
         "na_reason": na_reason or None,
         "na_reasons": na_reasons if answer == "na" else None,
         "flags": list(raw.get("flags") or []) if ctype == "flag" else [],
-        # модель сама отметила, что данных не хватило → критерий уходит на проверку человеку (балл — по чек-листу)
         "insufficient": explanations["ru"].lower().startswith("недостаточно данных:")
         or explanations["en"].lower().startswith("insufficient data:"),
     }
     return fixed, problems
+
+
+def _find_quote_anywhere(quote: str, transcript: list[dict]) -> int | None:
+    """Диагностика только: сообщает, что цитата есть в другой реплике, но не принимает её."""
+    q = _norm(quote)
+    if not q:
+        return None
+    for i, message in enumerate(transcript):
+        if q in _norm(message.get("text", "")):
+            return i
+    return None
 
 
 def _to_num(v):
