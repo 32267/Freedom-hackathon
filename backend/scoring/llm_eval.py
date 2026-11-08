@@ -1,5 +1,4 @@
-"""Один «ответ» одного провайдера: отдельный вызов на каждый критерий → проверка → повтор проблемных критериев.
-Сравнение нескольких ответов и выбор провайдеров — в ensemble.py."""
+"""Один ответ провайдера: пакет критериев → проверка → точечный повтор проблемных критериев."""
 from datetime import datetime, timezone
 
 from backend.llm import LLMError, LLMOutputError, call_json
@@ -9,7 +8,9 @@ from .prompt import build_schema, build_system, build_user
 from .validate import check_criterion
 
 MAX_RETRIES = 1
-CRITERIA_PER_REQUEST = 1
+# Two criteria per request halves the initial call count while keeping each
+# structured response small enough for local 4B models and 3072-token limits.
+CRITERIA_PER_REQUEST = 2
 
 
 def _usage(acc: dict, res) -> None:
@@ -31,10 +32,8 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
     raw = {}
     for start in range(0, len(criterion_ids), CRITERIA_PER_REQUEST):
         group = criterion_ids[start:start + CRITERIA_PER_REQUEST]
-        system = build_system(checklist, only=group)
-        user = build_user(dialog, only=group)
-        schema = build_schema(checklist, only=group)
-        res = call_json(system, user, schema, spec)
+        res = call_json(build_system(checklist, only=group), build_user(dialog, only=group),
+                        build_schema(checklist, only=group), spec)
         _usage(usage, res)
         raw.update(res.data.get("criteria", {}))
 
@@ -50,18 +49,13 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
     for _ in range(MAX_RETRIES):
         if not problems:
             break
-        # Keep retries criterion-scoped too: a combined retry can recreate the
-        # oversized response that per-criterion initial calls are designed to avoid.
+        # Retry only the failed criterion, not its original batch.
         for cid in list(problems):
             feedback = f"- {cid}: {'; '.join(problems[cid])}"
             try:
-                retry_system = build_system(checklist, only=[cid])
-                res = call_json(
-                    retry_system,
-                    build_user(dialog, only=[cid], feedback=feedback),
-                    build_schema(checklist, only=[cid]),
-                    spec,
-                )
+                res = call_json(build_system(checklist, only=[cid]),
+                                build_user(dialog, only=[cid], feedback=feedback),
+                                build_schema(checklist, only=[cid]), spec)
             except LLMError:
                 continue
             _usage(usage, res)
