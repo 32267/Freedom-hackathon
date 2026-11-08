@@ -112,6 +112,21 @@ def test_still_bad_after_retry_is_marked(monkeypatch):
     closing = next(r for r in ev["results"] if r["criterion_id"] == "closing")
     assert closing["validated"] is False and closing["evidence"] == [] and closing["problems"]
 
+def test_empty_yes_output_is_rejected_and_retry_gets_na_guidance(monkeypatch):
+    invalid = {**GOOD, "needs": {
+        "answer": "yes", "evidence": [], "explanation": "", "checked_range": [], "na_reason": ""
+    }}
+    f, calls = fake(_groups(invalid) + [{"needs": invalid["needs"]}])
+    monkeypatch.setattr(llm_eval, "call_json", f)
+    ev = llm_eval.evaluate_llm(CHAT, CL)
+    needs = next(r for r in ev["results"] if r["criterion_id"] == "needs")
+    assert needs["validated"] is False
+    assert any("без подтверждающей реплики" in p for p in needs["problems"])
+    assert any("explanation пустое" in p for p in needs["problems"])
+    retry_user = calls[-1]["user"]
+    assert "проверь na_rule и keep_if" in retry_user
+    assert "Если условие N/A выполнено" in retry_user
+
 
 def test_flag_counts_as_critical(monkeypatch):
     resp = {**GOOD, "gross_errors": good("yes", idx=5, quote="Часть средств заблокирована", flags=["confidential"])}
