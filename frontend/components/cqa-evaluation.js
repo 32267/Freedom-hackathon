@@ -276,7 +276,7 @@ class CqaEvaluation extends HTMLElement {
     button.disabled = true;
     button.textContent = "Оцениваем… 15–40 с";
     try {
-      const ev = await api.runEvaluation({ conversation_id: this.dialog.conversation_id, checklist_id: "default",
+      const ev = await api.runEvaluation({ conversation_id: this.dialog.conversation_id, checklist_id: "default", include_summary: true,
         providers: p.providers || undefined, samples: p.samples || undefined });
       await this.setEvaluation(ev);
       this.open = null;
