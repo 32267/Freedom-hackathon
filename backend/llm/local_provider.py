@@ -106,16 +106,16 @@ def _capture_debug(
 def call_json(system: str, user: str, schema: dict, model: str, effort: str, timeout_override: float | None = None, env_prefix: str = "LOCAL_LLM") -> LLMResult:
     base = os.getenv(f"{env_prefix}_URL", "").strip().rstrip("/")
     if not base:
-        raise LLMError("LOCAL_LLM_URL не задан — своя модель не подключена")
+        raise LLMError(f"{env_prefix}_URL не задан — локальная модель не подключена")
     name = os.getenv(f"{env_prefix}_MODEL", "").strip() or "cqa-judge"
-    headers = {"Authorization": f"Bearer {os.getenv('LOCAL_LLM_API_KEY', '').strip()}"} if os.getenv(f"{env_prefix}_API_KEY") else {}
+    headers = {"Authorization": f"Bearer {os.getenv(f'{env_prefix}_API_KEY', '').strip()}"} if os.getenv(f"{env_prefix}_API_KEY") else {}
 
     try:
         max_tokens = int(os.getenv(f"{env_prefix}_MAX_TOKENS", "3072"))
         if max_tokens < 1:
             raise ValueError
     except ValueError as e:
-        raise LLMError("{env_prefix}_MAX_TOKENS должен быть целым числом больше 0") from e
+        raise LLMError(f"{env_prefix}_MAX_TOKENS должен быть целым числом больше 0") from e
 
     try:
         repetition_penalty = float(os.getenv(f"{env_prefix}_REPETITION_PENALTY", "1.1"))
@@ -123,7 +123,7 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str, tim
         if repetition_penalty < 1.0 or repetition_context_size < 1:
             raise ValueError
     except ValueError as e:
-        raise LLMError("{env_prefix}_REPETITION_PENALTY должен быть >= 1.0, а {env_prefix}_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
+        raise LLMError(f"{env_prefix}_REPETITION_PENALTY должен быть >= 1.0, а {env_prefix}_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
 
     timeout = float(timeout_override if timeout_override is not None else os.getenv(f"{env_prefix}_TIMEOUT", "600"))
     if timeout <= 0:
