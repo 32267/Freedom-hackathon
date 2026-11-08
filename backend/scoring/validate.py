@@ -106,6 +106,8 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
         problems.append(f"explanation пустое на языке диалога ({source_lang})")
     if answer == "na" and not source_na_reason:
         problems.append(f"na_reason пустое на языке диалога ({source_lang})")
+    if answer != "na" and source_na_reason:
+        problems.append("na_reason должен быть пустым, если answer не na")
 
     fixed = {
         "answer": answer if ctype != "scale" or answer == "na" or answer is None else _to_num(answer),
