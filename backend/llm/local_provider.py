@@ -8,7 +8,7 @@
   LOCAL_LLM_TIMEOUT=600                       # таймаут запроса в секундах
   LOCAL_LLM_REPETITION_PENALTY=1.1            # штраф за повторение (1.0 отключает)
   LOCAL_LLM_REPETITION_CONTEXT_SIZE=64        # окно токенов для штрафа за повторение
-  LOCAL_LLM_DEBUG_DIR=                        # каталог для opt-in локальной диагностики
+  {env_prefix}_DEBUG_DIR=                        # каталог для opt-in локальной диагностики
 
 Ответ запрашивается по JSON-схеме (response_format json_schema); сервер должен это поддерживать.
 Диагностические файлы могут содержать полный текст клиентского диалога. Они создаются
@@ -103,29 +103,29 @@ def _capture_debug(
         warnings.warn(f"Could not write local LLM diagnostic capture: {exc}", RuntimeWarning)
 
 
-def call_json(system: str, user: str, schema: dict, model: str, effort: str, timeout_override: float | None = None) -> LLMResult:
-    base = os.getenv("LOCAL_LLM_URL", "").strip().rstrip("/")
+def call_json(system: str, user: str, schema: dict, model: str, effort: str, timeout_override: float | None = None, env_prefix: str = "LOCAL_LLM") -> LLMResult:
+    base = os.getenv(f"{env_prefix}_URL", "").strip().rstrip("/")
     if not base:
         raise LLMError("LOCAL_LLM_URL не задан — своя модель не подключена")
-    name = os.getenv("LOCAL_LLM_MODEL", "").strip() or "cqa-judge"
-    headers = {"Authorization": f"Bearer {os.getenv('LOCAL_LLM_API_KEY', '').strip()}"} if os.getenv("LOCAL_LLM_API_KEY") else {}
+    name = os.getenv(f"{env_prefix}_MODEL", "").strip() or "cqa-judge"
+    headers = {"Authorization": f"Bearer {os.getenv('LOCAL_LLM_API_KEY', '').strip()}"} if os.getenv(f"{env_prefix}_API_KEY") else {}
 
     try:
-        max_tokens = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "3072"))
+        max_tokens = int(os.getenv(f"{env_prefix}_MAX_TOKENS", "3072"))
         if max_tokens < 1:
             raise ValueError
     except ValueError as e:
-        raise LLMError("LOCAL_LLM_MAX_TOKENS должен быть целым числом больше 0") from e
+        raise LLMError("{env_prefix}_MAX_TOKENS должен быть целым числом больше 0") from e
 
     try:
-        repetition_penalty = float(os.getenv("LOCAL_LLM_REPETITION_PENALTY", "1.1"))
-        repetition_context_size = int(os.getenv("LOCAL_LLM_REPETITION_CONTEXT_SIZE", "64"))
+        repetition_penalty = float(os.getenv(f"{env_prefix}_REPETITION_PENALTY", "1.1"))
+        repetition_context_size = int(os.getenv(f"{env_prefix}_REPETITION_CONTEXT_SIZE", "64"))
         if repetition_penalty < 1.0 or repetition_context_size < 1:
             raise ValueError
     except ValueError as e:
-        raise LLMError("LOCAL_LLM_REPETITION_PENALTY должен быть >= 1.0, а LOCAL_LLM_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
+        raise LLMError("{env_prefix}_REPETITION_PENALTY должен быть >= 1.0, а {env_prefix}_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
 
-    timeout = float(timeout_override if timeout_override is not None else os.getenv("LOCAL_LLM_TIMEOUT", "600"))
+    timeout = float(timeout_override if timeout_override is not None else os.getenv(f"{env_prefix}_TIMEOUT", "600"))
     if timeout <= 0:
         raise LLMError("Таймаут локальной модели должен быть больше 0")
     body = {
@@ -138,12 +138,12 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str, tim
     if repetition_penalty > 1.0:
         body["repetition_penalty"] = repetition_penalty
         body["repetition_context_size"] = repetition_context_size
-    debug_dir = os.getenv("LOCAL_LLM_DEBUG_DIR", "").strip()
+    debug_dir = os.getenv(f"{env_prefix}_DEBUG_DIR", "").strip()
     debug_context = _debug_context(user, schema) if debug_dir else None
     try:
         r = httpx.post(f"{base}/chat/completions", json=body, headers=headers, timeout=timeout)
     except httpx.TimeoutException as e:
-        raise LLMError(f"Своя модель: таймаут после {timeout:g} с (LOCAL_LLM_TIMEOUT)") from e
+        raise LLMError(f"Своя модель: таймаут после {timeout:g} с ({env_prefix}_TIMEOUT)") from e
     except httpx.HTTPError as e:
         raise LLMError(f"Своя модель недоступна: {e}") from e
     if r.status_code >= 400:
