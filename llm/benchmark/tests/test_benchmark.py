@@ -124,9 +124,9 @@ class RunnerTests(unittest.TestCase):
 class ComparisonTests(unittest.TestCase):
     def test_candidate_must_stay_within_overall_and_language_accuracy_loss(self):
         baseline = {"overall_criterion_macro_f1": 0.92, "language_summary": {
-            "RU": {"criterion_macro_f1": 0.93}, "KZ": {"criterion_macro_f1": 0.90}}}
+            "RU": {"criterion_macro_f1": 0.93}, "KZ": {"criterion_macro_f1": 0.90}, "EN": {"criterion_macro_f1": 0.91}}}
         candidate = {"overall_criterion_macro_f1": 0.905, "language_summary": {
-            "RU": {"criterion_macro_f1": 0.91}, "KZ": {"criterion_macro_f1": 0.88}}}
+            "RU": {"criterion_macro_f1": 0.91}, "KZ": {"criterion_macro_f1": 0.88}, "EN": {"criterion_macro_f1": 0.90}}}
         result = compare_reports(baseline, candidate)
         self.assertTrue(result["pass"])
         candidate["language_summary"]["KZ"]["criterion_macro_f1"] = 0.86
