@@ -1,10 +1,10 @@
 {
   "conversation_id": "fixture-chat-ru",
   "checklist_id": "default",
-  "checklist_version": 6,
+  "checklist_version": 7,
   "status": "done",
   "model": "mock",
-  "cost_usd": 0.0,
+  "cost_usd": 0,
   "tokens": {
     "input": 0,
     "output": 0
@@ -170,7 +170,7 @@
       "validated": true,
       "weight": 15,
       "effective_weight": 15.79,
-      "weighted_score": 0.0
+      "weighted_score": 0
     },
     {
       "criterion_id": "closing",
@@ -195,8 +195,8 @@
       "source": "llm",
       "validated": true,
       "weight": 5,
-      "effective_weight": 0.0,
-      "weighted_score": 0.0
+      "effective_weight": 0,
+      "weighted_score": 0
     },
     {
       "criterion_id": "gross_errors",
@@ -217,8 +217,8 @@
       "source": "llm",
       "validated": true,
       "weight": 0,
-      "effective_weight": 0.0,
-      "weighted_score": 0.0
+      "effective_weight": 0,
+      "weighted_score": 0
     }
   ],
   "total_score": 73.68,
@@ -227,15 +227,15 @@
   "section_scores": [
     {
       "section_id": "start",
-      "score": 100.0
+      "score": 100
     },
     {
       "section_id": "security",
-      "score": 75.0
+      "score": 75
     },
     {
       "section_id": "conduct",
-      "score": 50.0
+      "score": 50
     }
   ],
   "created_at": "2026-11-07T16:40:00+00:00",
