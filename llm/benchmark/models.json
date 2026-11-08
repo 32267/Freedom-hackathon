@@ -52,6 +52,17 @@
       "mlx_distribution": null,
       "license": "provider terms apply",
       "verified_installed": false
+    },
+    {
+      "id": "hybrid-qwen-vlm-claude-fallback",
+      "provider": "hybrid",
+      "model": "HYBRID_VLM_PROVIDER + HYBRID_LM_PROVIDER",
+      "runtime": "criterion-scoped VLM first pass with LM fallback",
+      "quantization": null,
+      "context_length": 4096,
+      "model_env": null,
+      "license": "component model terms apply",
+      "verified_installed": false
     }
   ]
 }
