@@ -99,7 +99,7 @@ def test_retry_only_bad_criteria(monkeypatch):
     ev = llm_eval.evaluate_llm(CHAT, CL)
     assert len(calls) == 5
     assert list(calls[4]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
-    assert "msg_index" in calls[4]["user"]
+    assert "указанной реплике 3" in calls[4]["user"]
     assert all(1 <= len(c["schema"]["properties"]["criteria"]["required"]) <= 2 for c in calls[:4])
     assert len(calls[4]["schema"]["properties"]["criteria"]["required"]) == 1
     assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 5
