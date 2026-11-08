@@ -32,7 +32,7 @@ def _i18n(value) -> dict:
     return {"ru": (value or "").strip(), "kz": "", "en": ""}
 
 
-def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel: str | None = None) -> tuple[dict, list[str]]:
+def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel: str | None = None, language: str = "RU") -> tuple[dict, list[str]]:
     """Возвращает (исправленный ответ, список проблем). Исправляет только безопасное: сдвиг msg_index.
     channel — канал диалога: N/A, разрешённый только для некоторых каналов (na_channels), в других — ошибка."""
     problems = []
@@ -90,22 +90,39 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
                                       and str(answer) != str(criterion["scale"]["max"]))
     if ctype != "flag" and is_shortfall and not evidence and checked is None:
         problems.append("снижение балла без доказательства и без checked_range")
-    explanations = _i18n(raw.get("explanation"))
-    if answer == "na":                         # для N/A причина может служить обоснованием
-        explanations = {lang: explanations[lang] or na_reasons[lang] for lang in LANGS}
-    missing = [lang for lang in LANGS if not explanations[lang]]
-    if missing:
-        problems.append(f"explanation пустое на языках: {', '.join(missing)}")
-    if answer == "na" and na_reason and any(not na_reasons[lang] for lang in LANGS):
-        problems.append("na_reason нужен на ru, kz и en")
+    source_lang = {"RU": "ru", "KZ": "kz", "EN": "en"}.get(str(language).upper(), "ru")
+    source_explanation = raw.get("explanation")
+    if isinstance(source_explanation, dict):
+        explanations = _i18n(source_explanation)
+        source_explanation = explanations[source_lang] or explanations["ru"] or explanations["en"] or explanations["kz"]
+    else:
+        source_explanation = (source_explanation or "").strip()
+        explanations = {lang: (source_explanation if lang == source_lang else "") for lang in LANGS}
+    source_na_reason = raw.get("na_reason")
+    if isinstance(source_na_reason, dict):
+        na_reasons = _i18n(source_na_reason)
+        source_na_reason = na_reasons[source_lang] or na_reasons["ru"] or na_reasons["en"] or na_reasons["kz"]
+    else:
+        source_na_reason = (source_na_reason or "").strip()
+        na_reasons = {lang: (source_na_reason if lang == source_lang else "") for lang in LANGS}
+    if answer == "na" and not source_explanation:
+        source_explanation = source_na_reason
+        explanations[source_lang] = source_explanation
+    if not source_explanation:
+        problems.append(f"explanation пустое на языке диалога ({source_lang})")
+    if answer == "na" and not source_na_reason:
+        problems.append(f"na_reason пустое на языке диалога ({source_lang})")
 
     fixed = {
         "answer": answer if ctype != "scale" or answer == "na" or answer is None else _to_num(answer),
-        "explanation": explanations["ru"],
+        "explanation": explanations["ru"] or source_explanation,
         "explanations": explanations,
+        "_source_language": source_lang,
+        "_source_explanation": source_explanation,
+        "_source_na_reason": source_na_reason,
         "evidence": evidence,
         "checked_range": checked,
-        "na_reason": na_reason or None,
+        "na_reason": source_na_reason or None,
         "na_reasons": na_reasons if answer == "na" else None,
         "flags": list(raw.get("flags") or []) if ctype == "flag" else [],
         # модель сама отметила, что данных не хватило → критерий уходит на проверку человеку (балл — по чек-листу)
