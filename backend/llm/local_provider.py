@@ -12,7 +12,8 @@
 
 Ответ запрашивается по JSON-схеме (response_format json_schema); сервер должен это поддерживать.
 Диагностические файлы могут содержать полный текст клиентского диалога. Они создаются
-только при явно заданном LOCAL_LLM_DEBUG_DIR и остаются локальными.
+только при явно заданном LOCAL_LLM_DEBUG_DIR и остаются локальными. Имя файла включает
+ID диалога, критерий, UTC-время и номер попытки.
 """
 import json
 import os
@@ -82,7 +83,17 @@ def _capture_debug(
             "response_text": response_text,
             "capture_error": capture_error,
         }
-        filename = f"{stamp.strftime('%Y%m%dT%H%M%S_%fZ')}_{uuid.uuid4().hex[:8]}.json"
+        def filename_part(value: object, fallback: str) -> str:
+            safe = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value or "")).strip("._-")
+            return (safe[:80] or fallback)
+
+        chat_name = filename_part(context.get("conversation_id"), "unknown-chat")
+        criterion_name = filename_part(context.get("criterion_id"), "all-criteria")
+        attempt = context.get("attempt", 1)
+        filename = (
+            f"{chat_name}_{criterion_name}_{stamp.strftime('%Y%m%dT%H%M%S_%fZ')}_"
+            f"attempt{attempt}_{uuid.uuid4().hex[:8]}.json"
+        )
         target = directory / filename
         payload = (json.dumps(record, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, stat.S_IRUSR | stat.S_IWUSR)
