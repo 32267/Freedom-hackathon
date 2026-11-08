@@ -79,3 +79,19 @@ def test_mock_shape_and_recompute(monkeypatch):
         for r in ev["results"]:
             r["answer"], r["flags"] = ALL_YES[r["criterion_id"]], []
         assert recompute(ev, CL)["total_score"] == 100.0
+
+
+
+def test_summary_is_opt_in_to_keep_evaluation_fast(monkeypatch):
+    import backend.scoring as scoring
+
+    monkeypatch.setenv("SCORING_MODE", "mock")
+    calls = []
+    monkeypatch.setattr(scoring, "summarize_dialog", lambda *args: calls.append(args) or {"status": "resolved"})
+    dialog = json.loads((ROOT / "fixtures" / "dialog.chat.json").read_text())
+
+    plain = evaluate(dialog, CL)
+    assert "summary" not in plain and calls == []
+
+    with_summary = evaluate(dialog, CL, include_summary=True)
+    assert with_summary["summary"]["status"] == "resolved" and len(calls) == 1

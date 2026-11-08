@@ -3,7 +3,7 @@
 После оценки модель составляет: с чем клиент обращался, что оператор сделал, что осталось нерешённым или
 объяснено не полностью (каждый пункт — с цитатой-доказательством), следующий шаг и имя оператора (для рейтинга).
 При повторном звонке оператор видит сводки прошлых обращений клиента и продолжает с того же места.
-Цитаты проверяются так же, как в оценке: пункт без подтверждённой цитаты отбрасывается.
+Цитаты проверяются по точному msg_index, как в оценке: пункт с неверным индексом или неподтверждённой цитатой отбрасывается.
 """
 from backend.llm import LLMError, call_json, is_alive, provider_tiers
 
@@ -60,8 +60,7 @@ def _clean(raw: dict, transcript: list[dict]) -> dict:
     issues = []
     for it in raw.get("open_issues") or []:
         idx = it.get("msg_index")
-        found = _find_quote(it.get("quote", ""), min(max(idx if isinstance(idx, int) else 0, 0), max(len(transcript) - 1, 0)),
-                            transcript) if transcript else None
+        found = _find_quote(it.get("quote", ""), idx, transcript) if transcript else None
         if found is None:
             continue                                   # замечание без подтверждённой цитаты не показываем
         issues.append({"kind": it.get("kind", "unresolved"), "text": it.get("text", {}), "msg_index": found,

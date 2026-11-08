@@ -66,9 +66,9 @@ def test_prompt_contains_rules_and_numbered_transcript():
     assert "До оператора с клиентом общался бот" in user
 
 
-def test_quote_validation_fixes_index_and_rejects_fake():
+def test_quote_validation_rejects_quote_from_wrong_message():
     fixed, probs = check_criterion(good("yes", idx=4), BY_ID["contact"], CHAT["transcript"])
-    assert not probs and fixed["evidence"][0]["msg_index"] == 3        # сдвинули на реальную реплику
+    assert fixed["evidence"] == [] and any("msg_index 4" in p for p in probs)
     _, probs = check_criterion(good("yes", quote="Добрый день, я Олег"), BY_ID["contact"], CHAT["transcript"])
     assert any("не найдена" in p for p in probs)
 
@@ -81,14 +81,14 @@ def _groups(mapping):
     ]
 
 
-def test_happy_path_one_criterion_per_call(monkeypatch):
+def test_happy_path_batches_two_criteria_per_call(monkeypatch):
     f, calls = fake(_groups(GOOD))
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == len(BY_ID) == 8 and all(r["validated"] for r in ev["results"])
-    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 1 for c in calls)
+    assert len(calls) == 4 and all(r["validated"] for r in ev["results"])
+    assert all(1 <= len(c["schema"]["properties"]["criteria"]["required"]) <= 2 for c in calls)
     # identification N/A → 80 весов; consultation 15/20 → 15 из 20 → итог 75/80
-    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.08
+    assert ev["total_score"] == 93.75 and ev["cost_usd"] == 0.04
 
 
 def test_retry_only_bad_criteria(monkeypatch):
@@ -97,11 +97,12 @@ def test_retry_only_bad_criteria(monkeypatch):
     f, calls = fake(grouped + [{"closing": good("yes", idx=7, quote="Хорошего дня")}])
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL)
-    assert len(calls) == 9
-    assert list(calls[8]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
-    assert "не найдена" in calls[8]["user"]
-    assert all(len(c["schema"]["properties"]["criteria"]["required"]) == 1 for c in calls)
-    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 9
+    assert len(calls) == 5
+    assert list(calls[4]["schema"]["properties"]["criteria"]["properties"]) == ["closing"]
+    assert "указанной реплике 3" in calls[4]["user"]
+    assert all(1 <= len(c["schema"]["properties"]["criteria"]["required"]) <= 2 for c in calls[:4])
+    assert len(calls[4]["schema"]["properties"]["criteria"]["required"]) == 1
+    assert all(r["validated"] for r in ev["results"]) and ev["tokens"]["calls"] == 5
 
 
 def test_still_bad_after_retry_is_marked(monkeypatch):

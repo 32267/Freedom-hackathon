@@ -7,14 +7,20 @@ ROOT = Path(__file__).parent.parent
 CHAT = json.loads((ROOT / "fixtures/dialog.chat.json").read_text())
 
 
-def test_clean_drops_unproven_issues_and_masked_names():
+def test_clean_requires_summary_quote_at_claimed_index_and_masks_names():
     t = {"ru": "x", "kz": "x", "en": "x"}
-    raw = {"reason": t, "done": t, "status": "partially_resolved", "next_step": t, "operator_name": "[Имя скрыто]",
-           "open_issues": [{"kind": "incomplete", "text": t, "msg_index": 4, "quote": "Вывести можно свободный остаток"},
-                           {"kind": "unresolved", "text": t, "msg_index": 2, "quote": "выдуманная цитата"}]}
-    out = summary._clean(raw, CHAT["transcript"])
-    assert [i["msg_index"] for i in out["open_issues"]] == [5]       # индекс поправлен на реальную реплику
+    base = {"reason": t, "done": t, "status": "partially_resolved", "next_step": t, "operator_name": "[Имя скрыто]"}
+    wrong_index = {**base, "open_issues": [
+        {"kind": "incomplete", "text": t, "msg_index": 4, "quote": "Вывести можно свободный остаток"},
+        {"kind": "unresolved", "text": t, "msg_index": 2, "quote": "выдуманная цитата"}]}
+    out = summary._clean(wrong_index, CHAT["transcript"])
+    assert out["open_issues"] == []
     assert out["operator_name"] == ""
+
+    correct_index = {**base, "open_issues": [
+        {"kind": "incomplete", "text": t, "msg_index": 5, "quote": "Вывести можно свободный остаток"}]}
+    out = summary._clean(correct_index, CHAT["transcript"])
+    assert [i["msg_index"] for i in out["open_issues"]] == [5]
 
 
 def test_summarize_falls_back_and_returns_none(monkeypatch):

@@ -165,8 +165,8 @@ def test_stats_lists_critical_errors(client):
 
 
 def test_summary_client_history_and_operator_rating(client):
-    a = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
-    b = client.post("/api/evaluations", json={"conversation_id": "fixture-call-en"}).json()
+    a = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru", "include_summary": True}).json()
+    b = client.post("/api/evaluations", json={"conversation_id": "fixture-call-en", "include_summary": True}).json()
     assert a["summary"]["reason"]["ru"] and a["summary"]["open_issues"][0]["quote"]
     # повторное обращение: оба диалога одного клиента → в карточке видна история прошлого
     for cid in ("fixture-chat-ru", "fixture-call-en"):
@@ -187,7 +187,7 @@ def test_summary_client_history_and_operator_rating(client):
 
 
 def test_summaries_backfill_without_rescoring(client):
-    ev = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
+    ev = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru", "include_summary": True}).json()
     stored = db.get_evaluation(ev["id"])
     stored.pop("summary")
     db.save_evaluation(stored)
