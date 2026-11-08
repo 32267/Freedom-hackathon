@@ -68,11 +68,11 @@ def test_deadline_prevents_starting_lm_fallback(monkeypatch):
     monkeypatch.setenv("HYBRID_LM_PROVIDER", "claude_cli")
     monkeypatch.setattr(hybrid, "evaluate_llm", fake)
     monkeypatch.setattr(hybrid, "translate_explanations", lambda evaluation, *args: evaluation)
-    evaluation = hybrid.evaluate_hybrid(DIALOG, CHECKLIST, deadline_seconds=0.000001)
+    from backend.llm import LLMOutputError
+    with __import__("pytest").raises(LLMOutputError, match="deadline expired"):
+        hybrid.evaluate_hybrid(DIALOG, CHECKLIST, deadline_seconds=0.000001)
 
     assert calls == ["local"]
-    assert evaluation["needs_review"]
-    assert "contact" in evaluation["hybrid"]["routes"]["needs_review"]
 
 
 def test_missing_result_from_both_models_is_not_fabricated(monkeypatch):
