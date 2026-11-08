@@ -36,7 +36,7 @@ def sample(spec, results):
 def test_lm_fallback_only_rechecks_invalid_vlm_criteria(monkeypatch):
     calls = []
 
-    def fake(dialog, checklist, spec, criterion_ids=None):
+    def fake(dialog, checklist, spec, criterion_ids=None, deadline_monotonic=None):
         calls.append((spec, criterion_ids))
         if spec == "local":
             return sample(spec, [result("contact"), result("closing", validated=False, answer="no")])
