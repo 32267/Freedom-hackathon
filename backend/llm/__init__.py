@@ -5,7 +5,8 @@
   claude_cli@<папка>    — другой аккаунт Claude Code (папка CLAUDE_CONFIG_DIR, где выполнен `claude` → /login)
   codex_cli             — локальный Codex CLI по подписке ChatGPT
   anthropic             — Claude API по ANTHROPIC_API_KEY (для демо и честной стоимости в README)
-  local                 — своя модель за OpenAI-совместимым сервером (Ollama / vLLM / LM Studio), LOCAL_LLM_URL;
+  local                 — VLM за OpenAI-совместимым сервером, LOCAL_LLM_URL;
+  local_lm              — текстовая LM за отдельным OpenAI-совместимым сервером, LOCAL_TEXT_LLM_URL;
                           сюда подключится модель, дообученная в папке llm/
 
 LLM_PROVIDERS — уровни через «|», внутри уровня — через запятую:
@@ -68,10 +69,12 @@ def call_json(system: str, user: str, schema: dict, spec: str | None = None, tim
     elif kind == "codex_cli":
         from .codex_cli_provider import call_json as impl
         res = impl(system=system, user=user, schema=schema, model=model, effort=effort)
-    elif kind == "local":
+    elif kind in ("local", "local_lm"):
         from .local_provider import call_json as impl
-        res = impl(system=system, user=user, schema=schema, model=model, effort=effort, timeout_override=timeout_override)
+        prefix = "LOCAL_TEXT_LLM" if kind == "local_lm" else "LOCAL_LLM"
+        res = impl(system=system, user=user, schema=schema, model=model, effort=effort,
+                   timeout_override=timeout_override, env_prefix=prefix)
     else:
-        raise LLMError(f"Неизвестный провайдер {spec!r} (есть: anthropic, claude_cli[@папка], codex_cli, local)")
+        raise LLMError(f"Неизвестный провайдер {spec!r} (есть: anthropic, claude_cli[@папка], codex_cli, local, local_lm)")
     res.provider = spec
     return res
