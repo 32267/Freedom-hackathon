@@ -75,6 +75,8 @@ def test_opt_in_debug_capture_saves_request_and_raw_completion(monkeypatch, tmp_
     assert saved["conversation_id"] == "dev-ru-chat-001"
     assert saved["criterion_id"] == "contact"
     assert saved["attempt"] == 1
+    assert files[0].name.startswith("dev-ru-chat-001_contact_")
+    assert "_attempt1_" in files[0].name
     assert saved["request"]["messages"][0]["content"] == "system prompt"
     assert saved["response"]["content"] == raw
     assert saved["response"]["finish_reason"] == "stop"
@@ -97,7 +99,10 @@ def test_opt_in_debug_capture_saves_truncated_completion(monkeypatch, tmp_path):
             "properties": {"criteria": {"type": "object", "properties": {"contact": {"type": "object"}}}},
         }, "local")
 
-    saved = json.loads(next(tmp_path.glob("*.json")).read_text(encoding="utf-8"))
+    capture_file = next(tmp_path.glob("*.json"))
+    saved = json.loads(capture_file.read_text(encoding="utf-8"))
+    assert capture_file.name.startswith("dev-ru-chat-001_contact_")
+    assert "_attempt2_" in capture_file.name
     assert saved["attempt"] == 2
     assert saved["response"]["content"] == raw
     assert saved["response"]["finish_reason"] == "length"
