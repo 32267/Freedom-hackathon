@@ -23,6 +23,7 @@ async function request(path, options = {}) {
 
 const post = (path, body) => request(path, { method: "POST", body: JSON.stringify(body ?? {}) });
 const put = (path, body) => request(path, { method: "PUT", body: JSON.stringify(body ?? {}) });
+const patch = (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body ?? {}) });
 const enc = encodeURIComponent;
 
 // ---------- демо-режим ----------
@@ -83,6 +84,9 @@ export const api = {
     return summarize(dialog, d.evaluations.find(e => e.conversation_id === dialog.conversation_id));
   },
   uploadDialogs: payload => (MOCK_MODE ? demoOnly() : post("/dialogs/upload", payload)),
+  updateDialog: (id, body) => (MOCK_MODE ? demoOnly() : patch(`/dialogs/${enc(id)}`, body)),
+  getClient: id => request(`/clients/${enc(id)}`),
+  async getOperators() { return MOCK_MODE ? [] : request("/operators"); },
   async uploadAudio(file, fields = {}) {
     if (MOCK_MODE) return demoOnly();
     const form = new FormData();

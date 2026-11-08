@@ -28,8 +28,8 @@ class CqaDialogList extends HTMLElement {
         <select class="cqa-select" id="group"><option value="">Все наборы</option></select>
       </div>
       <section class="cqa-card"><div class="cqa-table-wrap"><table class="cqa-table">
-        <thead><tr><th><input type="checkbox" id="all" aria-label="Выбрать все"></th><th>ДИАЛОГ</th><th>НАБОР</th><th>КАНАЛ</th><th>ЯЗЫК</th><th>РЕПЛИК</th><th>БАЛЛ</th><th>СТАТУС</th><th></th></tr></thead>
-        <tbody id="rows"><tr><td colspan="9"><div class="cqa-empty">Загрузка…</div></td></tr></tbody></table></div>
+        <thead><tr><th><input type="checkbox" id="all" aria-label="Выбрать все"></th><th>ДИАЛОГ</th><th>НАБОР</th><th>КАНАЛ</th><th>ЯЗЫК</th><th>ОПЕРАТОР</th><th>КЛИЕНТ</th><th>БАЛЛ</th><th>СТАТУС</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="10"><div class="cqa-empty">Загрузка…</div></td></tr></tbody></table></div>
         <div class="cqa-panel-sub" style="padding:12px 16px" id="count"></div></section>`;
 
     this.querySelectorAll("#search,#language,#channel,#status,#group").forEach(c => c.addEventListener("input", () => this.load()));
@@ -79,17 +79,18 @@ class CqaDialogList extends HTMLElement {
           <td><input class="row-check" type="checkbox" value="${esc(d.conversation_id)}" aria-label="Выбрать"></td>
           <td><button class="cqa-link cqa-id" data-open="${esc(d.conversation_id)}">${esc(d.conversation_id)}</button></td>
           <td class="cqa-muted">${esc(d.dataset_group_id || "—")}</td>
-          <td>${d.channel === "voice call" ? "☎ Звонок" : "✉ Чат"}</td><td>${esc(d.language)}</td><td>${d.turns ?? d.transcript.length}</td>
+          <td>${d.channel === "voice call" ? "☎ Звонок" : "✉ Чат"}</td><td>${esc(d.language)}</td>
+          <td>${esc(d.operator || "—")}</td><td class="cqa-muted">${esc(d.client_id || "—")}</td>
           <td class="cqa-score ${scoreClass(d.total_score)}">${fmtScore(d.total_score)}</td>
           <td>${d.evaluation_status === "done" ? '<span class="cqa-badge cqa-badge-success">Оценён</span>' : '<span class="cqa-badge">Не оценён</span>'}
             ${d.critical_error ? '<span class="cqa-badge cqa-badge-danger">Грубая ошибка</span>' : ""}
             ${d.needs_review ? '<span class="cqa-badge cqa-badge-warn">На проверку</span>' : ""}</td>
           <td><button class="cqa-link" data-open="${esc(d.conversation_id)}">Открыть →</button></td></tr>`).join("")
-        : '<tr><td colspan="9"><div class="cqa-empty">Диалоги не найдены — измените фильтры.</div></td></tr>';
+        : '<tr><td colspan="10"><div class="cqa-empty">Диалоги не найдены — измените фильтры.</div></td></tr>';
       this.querySelector("#count").textContent = `Показано: ${dialogs.length}`;
       this.visible = dialogs;
       rows.querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => emit(this, "open-dialog", { conversationId: b.dataset.open })));
-    } catch (e) { rows.innerHTML = `<tr><td colspan="9"><div class="cqa-empty">${esc(e.message)}</div></td></tr>`; }
+    } catch (e) { rows.innerHTML = `<tr><td colspan="10"><div class="cqa-empty">${esc(e.message)}</div></td></tr>`; }
   }
 
   preset() {

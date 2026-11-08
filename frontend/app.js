@@ -3,6 +3,7 @@ import "./components/cqa-dialog-list.js";
 import "./components/cqa-evaluation.js";
 import "./components/cqa-review-queue.js";
 import "./components/cqa-checklist-editor.js";
+import "./components/cqa-operators.js";
 import { api } from "./api.js";
 import { LANGS } from "./ui.js";
 
@@ -11,6 +12,7 @@ const ROUTES = {
   conversations: { title: "Диалоги", icon: "☰", tag: "cqa-dialog-list" },
   evaluation: { title: "Оценка", icon: "◉", tag: "cqa-evaluation" },
   appeals: { title: "Апелляции", icon: "⚖", tag: "cqa-review-queue" },
+  operators: { title: "Операторы", icon: "★", tag: "cqa-operators" },
   checklist: { title: "Чек-лист", icon: "✓", tag: "cqa-checklist-editor" },
 };
 

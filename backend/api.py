@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from backend import db
 from backend.llm import LLMError
 from backend.llm.registry import list_providers
-from backend.scoring import ScoringError, evaluate, recompute
+from backend.scoring import ScoringError, evaluate, recompute, summarize_dialog
 
 router = APIRouter(prefix="/api")
 def data_root() -> Path:
@@ -113,8 +113,14 @@ def _enrich(d: dict) -> dict:
     return out
 
 
+def _operator(d: dict, ev: dict | None) -> str:
+    """Оператор диалога: ручная привязка, иначе имя из сводки (если представился без маски)."""
+    return (d.get("operator") or ((ev or {}).get("summary") or {}).get("operator_name") or "").strip()
+
+
 def _summary(d: dict, ev: dict | None) -> dict:
-    return {**_enrich(d), "turns": len(d.get("transcript", [])),
+    return {**_enrich(d), "turns": len(d.get("transcript", [])), "client_id": d.get("client_id"), "operator": _operator(d, ev),
+            "summary_status": ((ev or {}).get("summary") or {}).get("status"),
             "evaluation_id": ev and ev["id"], "evaluation_status": ev["status"] if ev else "not_started",
             "total_score": ev and ev.get("total_score"), "critical_error": bool(ev and ev.get("critical_error")),
             "critical_flags": (ev or {}).get("critical_flags", []), "needs_review": bool(ev and ev.get("needs_review")),
@@ -131,10 +137,71 @@ def dialogs(group_id: str | None = None, language: str | None = None, channel: s
     return rows
 
 
+def _history(client_id: str, exclude: str | None = None) -> list[dict]:
+    latest = db.latest_evaluations()
+    out = []
+    for d in db.list_dialogs():
+        if d.get("client_id") != client_id or d["conversation_id"] == exclude:
+            continue
+        ev = latest.get(d["conversation_id"])
+        out.append({"conversation_id": d["conversation_id"], "channel": d.get("channel"), "language": d.get("language"),
+                    "started": (d.get("transcript") or [{}])[0].get("timestamp"), "evaluated_at": ev and ev.get("created_at"),
+                    "total_score": ev and ev.get("total_score"), "operator": _operator(d, ev), "summary": (ev or {}).get("summary")})
+    return sorted(out, key=lambda x: x["evaluated_at"] or "", reverse=True)
+
+
 @router.get("/dialogs/{cid}")
 def dialog(cid: str):
     d = db.get_dialog(cid) or _err(404, f"Диалог {cid} не найден")
-    return _summary(d, db.latest_evaluation(cid))
+    out = _summary(d, db.latest_evaluation(cid))
+    out["history"] = _history(d["client_id"], exclude=cid) if d.get("client_id") else []
+    return out
+
+
+@router.patch("/dialogs/{cid}")
+def update_dialog(cid: str, body: dict = Body(...)):
+    """Привязка к клиенту (client_id) и/или оператору (operator). Пустая строка — отвязать."""
+    d = db.get_dialog(cid) or _err(404, f"Диалог {cid} не найден")
+    for key in ("client_id", "operator"):
+        if key in body:
+            value = (body[key] or "").strip()[:80]
+            if value:
+                d[key] = value
+            else:
+                d.pop(key, None)
+    db.upsert_dialog(d, d.get("dataset_group_id"))
+    return dialog(cid)
+
+
+@router.get("/clients/{client_id}")
+def client_history(client_id: str):
+    """Все обращения клиента со сводками — что спрашивал, что сделано, что осталось."""
+    return {"client_id": client_id, "contacts": _history(client_id)}
+
+
+@router.get("/operators")
+def operators():
+    """Рейтинг операторов по средней оценке их диалогов (последняя оценка каждого диалога)."""
+    latest = db.latest_evaluations()
+    agg: dict[str, dict] = {}
+    for d in db.list_dialogs():
+        ev = latest.get(d["conversation_id"])
+        name = _operator(d, ev)
+        if not ev or not name or ev.get("total_score") is None:
+            continue
+        a = agg.setdefault(name, {"operator": name, "dialogs": [], "scores": [], "critical": 0, "review": 0, "open_issues": 0})
+        a["dialogs"].append({"conversation_id": d["conversation_id"], "total_score": ev["total_score"], "channel": d.get("channel"),
+                             "language": d.get("language")})
+        a["scores"].append(ev["total_score"])
+        a["critical"] += bool(ev.get("critical_error"))
+        a["review"] += bool(ev.get("needs_review"))
+        a["open_issues"] += len(((ev.get("summary") or {}).get("open_issues")) or [])
+    rows = [{**{k: v for k, v in a.items() if k != "scores"}, "count": len(a["scores"]),
+             "average": round(sum(a["scores"]) / len(a["scores"]), 2)} for a in agg.values()]
+    rows.sort(key=lambda r: (-r["average"], -r["count"]))
+    for i, r in enumerate(rows, 1):
+        r["rank"] = i
+    return rows
 
 
 @router.get("/dialogs/{cid}/evaluation")
@@ -349,6 +416,25 @@ def _run_job(job: dict, ids: list[str], body: dict) -> None:
         job["finished_at"] = db.now()
 
 
+def _run_summaries(job: dict, ids: list[str], providers) -> None:
+    def one(cid):
+        d, ev = db.get_dialog(cid), db.latest_evaluation(cid)
+        s = summarize_dialog(d, _providers_arg(providers)) if d and ev else None
+        with _jobs_lock:
+            if s:
+                ev["summary"] = s
+                db.save_evaluation(ev)
+                job["done"] += 1
+            else:
+                job["failed"] += 1
+                job["errors"].append(f"{cid}: сводка не получена")
+    with ThreadPoolExecutor(max_workers=int(os.getenv("BATCH_WORKERS", "3"))) as pool:
+        list(pool.map(one, ids))
+    with _jobs_lock:
+        job["status"] = "done"
+        job["finished_at"] = db.now()
+
+
 @router.post("/evaluations/batch")
 def batch(body: dict = Body(...)):
     """{group_id?, conversation_ids?, checklist_id?, providers?, samples?, only_missing?} → {job_id}."""
@@ -356,6 +442,16 @@ def batch(body: dict = Body(...)):
         ids = list(body["conversation_ids"])
     else:
         ids = [d["conversation_id"] for d in db.list_dialogs(group_id=body.get("group_id"))]
+    if body.get("summaries_only"):
+        # досоздать сводки к уже оценённым диалогам, не переоценивая их
+        latest = db.latest_evaluations()
+        ids = [i for i in ids if latest.get(i) and not latest[i].get("summary")]
+        job = {"job_id": db.new_id("job"), "total": len(ids), "done": 0, "failed": 0, "errors": [], "status": "running",
+               "started_at": db.now(), "kind": "summaries"}
+        with _jobs_lock:
+            _jobs[job["job_id"]] = job
+        threading.Thread(target=_run_summaries, args=(job, ids, body.get("providers")), daemon=True).start()
+        return job
     cl = db.get_checklist(body.get("checklist_id") or "default") or _err(404, "Чек-лист не найден")
     if body.get("only_missing", True):
         latest = db.latest_evaluations()

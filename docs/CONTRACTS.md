@@ -127,9 +127,19 @@ LLM_SAMPLES независимых ответов → по каждому кри
       "na_reasons": null              // при N/A: {"ru": "...", "kz": "...", "en": "..."}
     }
   ],
-  "created_at": "2026-11-07T10:00:00Z"
+  "created_at": "2026-11-07T10:00:00Z",
+  "summary": {                        // сводка для следующего обращения (backend/scoring/summary.py)
+    "reason": {"ru": "…", "kz": "…", "en": "…"},      // с чем обращался клиент
+    "done": {"ru": "…", "kz": "…", "en": "…"},        // что оператор сделал
+    "status": "partially_resolved",                   // resolved | partially_resolved | unresolved
+    "open_issues": [{"kind": "incomplete", "text": {"ru": "…"}, "msg_index": 12, "quote": "…"}],  // цитаты проверены
+    "next_step": {"ru": "…", "kz": "…", "en": "…"},
+    "operator_name": "Алина"                          // для рейтинга; пусто, если не представился или имя скрыто
+  }
 }
 ```
+`GET /api/dialogs/{id}` дополнительно отдаёт `client_id`, `operator` и `history` — прошлые обращения того же клиента
+со сводками. Сводки к уже оценённым диалогам: `POST /api/evaluations/batch {"summaries_only": true}` (без переоценки).
 
 ### Appeal
 ```json
@@ -155,6 +165,9 @@ LLM_SAMPLES независимых ответов → по каждому кри
 | POST | `/api/datasets/{group_id}/import` | Забрать набор у организаторов, сохранить диалоги | Codex-2 |
 | GET | `/api/dialogs?group_id=&language=&channel=&search=` | Список диалогов + `evaluation_id`, `evaluation_status`, `total_score`, `critical_error`, `needs_review` | Codex-2 |
 | GET | `/api/dialogs/{id}` | Диалог целиком + `msg_index`, `offset_sec`, `audio_src`, сводка последней оценки | Codex-2 |
+| PATCH | `/api/dialogs/{id}` | `{client_id?, operator?}` — привязка к клиенту и оператору (пустая строка — отвязать) | Ислам |
+| GET | `/api/clients/{client_id}` | Все обращения клиента со сводками | Ислам |
+| GET | `/api/operators` | Рейтинг операторов: средний балл, диалоги, грубые ошибки, открытые вопросы | Ислам |
 | GET | `/api/dialogs/{id}/evaluation` | Последняя оценка диалога (404 — ещё не оценён) | Codex-2 |
 | GET | `/api/dialogs/{id}/audio` | mp3 записи звонка (Range → перемотка); сам достаёт файл из страницы плеера `audio_url` | Codex-2 |
 | POST | `/api/dialogs/upload` | Загрузка своего транскрипта (JSON формата Dialog) | Codex-2 |

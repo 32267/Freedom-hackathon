@@ -162,3 +162,40 @@ def test_stats_lists_critical_errors(client):
     ev = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
     s = client.get("/api/stats").json()
     assert len(s["critical_list"]) == int(ev["critical_error"])
+
+
+def test_summary_client_history_and_operator_rating(client):
+    a = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
+    b = client.post("/api/evaluations", json={"conversation_id": "fixture-call-en"}).json()
+    assert a["summary"]["reason"]["ru"] and a["summary"]["open_issues"][0]["quote"]
+    # повторное обращение: оба диалога одного клиента → в карточке видна история прошлого
+    for cid in ("fixture-chat-ru", "fixture-call-en"):
+        assert client.patch(f"/api/dialogs/{cid}", json={"client_id": "client-42"}).status_code == 200
+    d = client.get("/api/dialogs/fixture-call-en").json()
+    assert d["client_id"] == "client-42" and [h["conversation_id"] for h in d["history"]] == ["fixture-chat-ru"]
+    assert d["history"][0]["summary"]["next_step"]["ru"]
+    assert len(client.get("/api/clients/client-42").json()["contacts"]) == 2
+    # рейтинг операторов
+    client.patch("/api/dialogs/fixture-chat-ru", json={"operator": "Анна"})
+    client.patch("/api/dialogs/fixture-call-en", json={"operator": "Анна"})
+    rows = client.get("/api/operators").json()
+    assert rows[0]["operator"] == "Анна" and rows[0]["count"] == 2 and rows[0]["rank"] == 1
+    assert rows[0]["average"] == round((a["total_score"] + b["total_score"]) / 2, 2)
+    # отвязка
+    client.patch("/api/dialogs/fixture-call-en", json={"client_id": ""})
+    assert client.get("/api/dialogs/fixture-call-en").json()["history"] == []
+
+
+def test_summaries_backfill_without_rescoring(client):
+    ev = client.post("/api/evaluations", json={"conversation_id": "fixture-chat-ru"}).json()
+    stored = db.get_evaluation(ev["id"])
+    stored.pop("summary")
+    db.save_evaluation(stored)
+    job = client.post("/api/evaluations/batch", json={"summaries_only": True}).json()
+    for _ in range(50):
+        st = client.get(f"/api/jobs/{job['job_id']}").json()
+        if st["status"] == "done":
+            break
+        time.sleep(0.05)
+    after = db.get_evaluation(ev["id"])
+    assert st["done"] == 1 and after["summary"] and after["total_score"] == ev["total_score"]

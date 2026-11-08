@@ -16,9 +16,20 @@ def evaluate(dialog: dict, checklist: dict, providers: str | None = None, sample
     """
     if os.getenv("SCORING_MODE", "llm") == "mock":
         from .mock import evaluate as _mock
-        return _mock(dialog, checklist)
-    from .ensemble import evaluate_ensemble
-    return evaluate_ensemble(dialog, checklist, providers=providers, samples=samples)
+        ev = _mock(dialog, checklist)
+    else:
+        from .ensemble import evaluate_ensemble
+        ev = evaluate_ensemble(dialog, checklist, providers=providers, samples=samples)
+    ev["summary"] = summarize_dialog(dialog, providers)
+    return ev
+
+
+def summarize_dialog(dialog: dict, providers: str | None = None) -> dict | None:
+    """Сводка для следующего обращения: причина, что сделано, открытые вопросы с цитатами, имя оператора."""
+    from .summary import mock_summary, summarize
+    if os.getenv("SCORING_MODE", "llm") == "mock":
+        return mock_summary(dialog)
+    return summarize(dialog, providers)
 
 
 def recompute(evaluation: dict, checklist: dict) -> dict:
@@ -26,4 +37,4 @@ def recompute(evaluation: dict, checklist: dict) -> dict:
     return {**evaluation, **compute(evaluation["results"], checklist)}
 
 
-__all__ = ["evaluate", "recompute", "ScoringError"]
+__all__ = ["evaluate", "recompute", "summarize_dialog", "ScoringError"]

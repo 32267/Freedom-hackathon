@@ -253,7 +253,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
   .cqa-brand { margin: 0; height: 36px; padding: 0; flex: 0 0 auto; }
   .cqa-brand-mark, .cqa-sidebar:hover .cqa-brand-mark, .cqa-shell.pinned .cqa-brand-mark { opacity: 1; height: 32px; }
   .cqa-brand-logo { display: none; }
-  .cqa-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); flex: 1; gap: 2px; }
+  .cqa-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); flex: 1; gap: 2px; }
   .cqa-nav a { flex-direction: column; justify-content: center; gap: 2px; height: 50px; padding: 0 2px; font-size: 10px; border-radius: 10px; }
   .cqa-nav-text, .cqa-sidebar:hover .cqa-nav-text { opacity: 1; }
   .cqa-nav a.active { box-shadow: none; }
