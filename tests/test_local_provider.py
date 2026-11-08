@@ -170,3 +170,14 @@ def test_repetition_penalty_can_be_disabled(monkeypatch):
     assert "repetition_context_size" not in seen["body"]
     assert result.meta["repetition_penalty"] == 1.0
     assert result.meta["repetition_context_size"] is None
+
+
+def test_hybrid_timeout_override_reaches_local_http_request(monkeypatch):
+    monkeypatch.setenv("LOCAL_LLM_URL", "http://localhost:11434/v1")
+    seen = {}
+    def fake_post(url, json, headers, timeout):
+        seen["timeout"] = timeout
+        return Resp(200, {"choices": [{"message": {"content": '{"criteria": {}}'}}], "usage": {}})
+    monkeypatch.setattr(httpx, "post", fake_post)
+    call_json("s", "u", {"type": "object"}, "local", timeout_override=3.5)
+    assert seen["timeout"] == 3.5
