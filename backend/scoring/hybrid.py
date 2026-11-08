@@ -34,7 +34,7 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
     errors = []
     routes = {"vlm": [], "lm_fallback": [], "needs_review": []}
     try:
-        first = evaluate_llm(dialog, checklist, vlm_spec)
+        first = evaluate_llm(dialog, checklist, vlm_spec, deadline_monotonic=started + budget * 0.65)
         results = {r["criterion_id"]: dict(r) for r in first["results"]}
         usage = dict(first.get("tokens") or {})
         cost = float(first.get("cost_usd") or 0)
@@ -68,13 +68,15 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
     for cid in fallback_ids:
         if time.monotonic() - started >= budget:
             item = results.get(cid)
+            if item is None:
+                raise LLMOutputError(f"Hybrid deadline expired before any valid result for {cid}; human review required")
             if item is not None:
                 item["needs_review"] = True
                 item["problems"] = list(item.get("problems") or []) + ["Hybrid deadline expired before LM fallback"]
             routes["needs_review"].append(cid)
             continue
         try:
-            recovered = evaluate_llm(dialog, checklist, lm_spec, criterion_ids=[cid])
+            recovered = evaluate_llm(dialog, checklist, lm_spec, criterion_ids=[cid], deadline_monotonic=started + budget)
             replacement = recovered["results"][0]
             usage = {key: usage.get(key, 0) + (recovered.get("tokens") or {}).get(key, 0)
                      for key in ("input", "output", "cache_read", "calls")}
@@ -133,6 +135,9 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
         **compute(ordered, checklist),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+    # Never invent empty explanations to satisfy the translation contract.
+    if any(not str(item.get("_source_explanation") or "").strip() for item in ordered):
+        raise LLMOutputError("Hybrid evaluation has criteria without a valid explanation; human review required")
     # Preserve the source-language-first contract and translate only after routing.
     evaluation = translate_explanations(evaluation, dialog, checklist, lm_spec)
     elapsed = round(time.monotonic() - started, 3)
