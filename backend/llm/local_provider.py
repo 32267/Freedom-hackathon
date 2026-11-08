@@ -103,7 +103,7 @@ def _capture_debug(
         warnings.warn(f"Could not write local LLM diagnostic capture: {exc}", RuntimeWarning)
 
 
-def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> LLMResult:
+def call_json(system: str, user: str, schema: dict, model: str, effort: str, timeout_override: float | None = None) -> LLMResult:
     base = os.getenv("LOCAL_LLM_URL", "").strip().rstrip("/")
     if not base:
         raise LLMError("LOCAL_LLM_URL не задан — своя модель не подключена")
@@ -125,7 +125,9 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str) -> 
     except ValueError as e:
         raise LLMError("LOCAL_LLM_REPETITION_PENALTY должен быть >= 1.0, а LOCAL_LLM_REPETITION_CONTEXT_SIZE — целым числом > 0") from e
 
-    timeout = float(os.getenv("LOCAL_LLM_TIMEOUT", "600"))
+    timeout = float(timeout_override if timeout_override is not None else os.getenv("LOCAL_LLM_TIMEOUT", "600"))
+    if timeout <= 0:
+        raise LLMError("Таймаут локальной модели должен быть больше 0")
     body = {
         "model": name,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
