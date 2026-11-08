@@ -80,7 +80,7 @@ def validate_model_config(config: dict) -> dict[str, dict]:
         missing = [key for key in required if item.get(key) in (None, "")]
         if missing:
             raise BenchmarkDataError(f"{mid}: missing fields: {', '.join(missing)}")
-        if item["provider"] not in ("anthropic", "claude_cli", "codex_cli", "local", "hybrid"):
+        if item["provider"] not in ("anthropic", "claude_cli", "codex_cli", "local", "local_lm", "hybrid"):
             raise BenchmarkDataError(f"{mid}: unsupported provider {item['provider']!r}")
         if not isinstance(item["context_length"], int) or item["context_length"] <= 0:
             raise BenchmarkDataError(f"{mid}: context_length must be a positive integer")
