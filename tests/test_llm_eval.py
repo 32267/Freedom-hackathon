@@ -133,9 +133,9 @@ def test_three_languages_required_and_returned():
     fixed, probs = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
     assert not probs and fixed["explanation"] == "Поздоровался"
     assert fixed["explanations"] == {"ru": "Поздоровался", "kz": "Сәлемдесті", "en": "Greeted"}
-    _, probs = check_criterion(good("yes", explanation={"ru": "Поздоровался", "kz": "", "en": ""}),
-                               BY_ID["contact"], CHAT["transcript"])
-    assert any("kz, en" in p for p in probs)
+    fixed, probs = check_criterion(good("yes", explanation={"ru": "Поздоровался", "kz": "", "en": ""}),
+                                   BY_ID["contact"], CHAT["transcript"])
+    assert not probs and fixed["_source_explanation"] == "Поздоровался"
 
 
 def test_system_prompt_can_be_limited_to_group():
@@ -146,7 +146,7 @@ def test_system_prompt_can_be_limited_to_group():
 
 def test_schema_asks_for_three_languages():
     p = build_schema(CL)["properties"]["criteria"]["properties"]["contact"]["properties"]
-    assert p["explanation"]["required"] == ["ru", "kz", "en"] and p["na_reason"]["required"] == ["ru", "kz", "en"]
+    assert p["explanation"] == {"type": "string"} and p["na_reason"] == {"type": "string"}
 
 
 def test_call_timestamps_shortened_in_prompt_only():
