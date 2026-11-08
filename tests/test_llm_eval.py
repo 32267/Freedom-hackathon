@@ -205,3 +205,9 @@ def test_flag_yes_rejects_unknown_flag_types():
     raw = good("yes", idx=5, quote="Часть средств заблокирована", flags=["private_name"])
     _, problems = check_criterion(raw, BY_ID["gross_errors"], CHAT["transcript"])
     assert any("неизвестные flags" in problem for problem in problems)
+
+
+def test_yes_evidence_from_client_alone_is_rejected():
+    raw = good("yes", idx=1, quote="Не могу вывести деньги с брокерского счёта.")
+    _, problems = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
+    assert any("только репликами клиента/бота" in problem for problem in problems)
