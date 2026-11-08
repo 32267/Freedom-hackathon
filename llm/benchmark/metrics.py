@@ -187,3 +187,35 @@ def build_report(gold_records, prediction_records, checklist):
         "acceptance_gates": acceptance,
         "release_ready": bool(acceptance) and all(acceptance.values()),
     }
+
+
+def compare_reports(baseline: dict, candidate: dict, overall_tolerance: float = 0.02,
+                    language_tolerance: float = 0.03) -> dict:
+    """Check that a faster candidate stays within the agreed macro-F1 loss margins."""
+    base_overall = baseline.get("overall_criterion_macro_f1")
+    cand_overall = candidate.get("overall_criterion_macro_f1")
+    overall_delta = (cand_overall - base_overall) if isinstance(base_overall, (int, float)) and isinstance(cand_overall, (int, float)) else None
+    languages = {}
+    base_lang = baseline.get("language_summary") or {}
+    cand_lang = candidate.get("language_summary") or {}
+    for lang in sorted(set(base_lang) | set(cand_lang)):
+        b = (base_lang.get(lang) or {}).get("criterion_macro_f1")
+        c = (cand_lang.get(lang) or {}).get("criterion_macro_f1")
+        delta = c - b if isinstance(b, (int, float)) and isinstance(c, (int, float)) else None
+        languages[lang] = {"baseline_macro_f1": b, "candidate_macro_f1": c, "delta": delta,
+                           "pass": delta is not None and delta >= -language_tolerance}
+    gates = {
+        "overall_accuracy_loss_within_tolerance": overall_delta is not None and overall_delta >= -overall_tolerance,
+        "each_language_loss_within_tolerance": bool(languages) and all(item["pass"] for item in languages.values()),
+    }
+    return {
+        "comparison_version": 1,
+        "baseline_overall_macro_f1": base_overall,
+        "candidate_overall_macro_f1": cand_overall,
+        "overall_delta": overall_delta,
+        "overall_tolerance": overall_tolerance,
+        "language_tolerance": language_tolerance,
+        "by_language": languages,
+        "acceptance_gates": gates,
+        "pass": all(gates.values()),
+    }
