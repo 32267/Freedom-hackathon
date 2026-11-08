@@ -52,3 +52,35 @@ def test_prompt_contains_observed_semantic_regression_guardrails():
     assert "Не оценивай ожидание в очереди и задержку до подключения" in prompt
     assert "после того, как оператор вступил в диалог" in prompt
     assert "одно и то же решение и факты" in prompt
+
+def test_prompt_explicitly_rechecks_na_before_yes():
+    checklist = {
+        "name": "Test",
+        "notes": [],
+        "criteria": [
+            {
+                "id": "needs",
+                "title": "Needs",
+                "answer_type": "binary",
+                "weight": 10,
+                "description": "Use the known client details.",
+                "na_allowed": True,
+                "na_rule": "All required details were available from the start.",
+                "keep_if": ["Client supplied all details to the bot before the operator joined; N/A, not Yes."],
+            },
+            {
+                "id": "identification",
+                "title": "Identification",
+                "answer_type": "binary",
+                "weight": 10,
+                "description": "Verify identity before protected actions.",
+                "na_allowed": True,
+                "na_rule": "General questions without protected disclosure or action.",
+                "keep_if": ["General tariff or app-navigation questions are N/A."],
+            },
+        ],
+    }
+    prompt = build_system(checklist)
+    assert "слова клиента сами по себе не доказывают действие оператора" in prompt
+    assert "сообщения боту" in prompt and "это N/A" in prompt
+    assert "общий вопрос" in prompt and "без защищённого действия — N/A" in prompt
