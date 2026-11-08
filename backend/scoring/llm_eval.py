@@ -43,7 +43,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criteri
             if remaining <= 0:
                 raise LLMError("Hybrid deadline expired before model request")
             requests_left = max(1, (len(criterion_ids) - start + CRITERIA_PER_REQUEST - 1) // CRITERIA_PER_REQUEST)
-            timeout_override = max(0.5, remaining / requests_left)
+            timeout_override = remaining / requests_left
         system = build_system(checklist, only=group)
         user = build_user(dialog, only=group)
         schema = build_schema(checklist, only=group)
