@@ -10,12 +10,15 @@ Set these values in `.env`:
 ```dotenv
 SCORING_MODE=llm
 HYBRID_VLM_PROVIDER=local
-HYBRID_LM_PROVIDER=claude_cli
+HYBRID_LM_PROVIDER=local_lm
 HYBRID_DEADLINE_SECONDS=120
 ```
 
-The LM provider must be a configured provider supported by `backend.llm`, for example
-`claude_cli`, `codex_cli`, or `anthropic`. Do not set both providers to the same value.
+The default fallback is a separate local text-only LM provider (`local_lm`). Configure
+`LOCAL_TEXT_LLM_URL` and `LOCAL_TEXT_LLM_MODEL` for its OpenAI-compatible endpoint. This
+must point to the text-only LM server, not the VLM endpoint. Remote `claude_cli`,
+`codex_cli`, or `anthropic` can be selected as alternatives. Do not set both providers
+to the same value.
 Select the `Гибрид: VLM + LM fallback` preset (provider value `hybrid`) in the evaluator
 selector, or set `SCORING_STRATEGY=hybrid` for the default scoring route.
 
@@ -37,8 +40,8 @@ each run. Run each model separately:
 
 ```bash
 python -m llm.benchmark run --dialogs llm/data/DEV.json --checklist checklists/default.json --gold llm/data/gold.jsonl --model qwen3.5-4b-mlx-q4 --out llm/runs/qwen-4b/predictions.jsonl
-python -m llm.benchmark run --dialogs llm/data/DEV.json --checklist checklists/default.json --gold llm/data/gold.jsonl --model claude-reference --out llm/runs/claude/predictions.jsonl
-python -m llm.benchmark run --dialogs llm/data/DEV.json --checklist checklists/default.json --gold llm/data/gold.jsonl --model hybrid-qwen-vlm-claude-fallback --out llm/runs/hybrid/predictions.jsonl
+python -m llm.benchmark run --dialogs llm/data/DEV.json --checklist checklists/default.json --gold llm/data/gold.jsonl --model local-text-lm-baseline --out llm/runs/lm/predictions.jsonl
+python -m llm.benchmark run --dialogs llm/data/DEV.json --checklist checklists/default.json --gold llm/data/gold.jsonl --model hybrid-qwen-vlm-local-lm-fallback --out llm/runs/hybrid/predictions.jsonl
 ```
 
 For each output:
