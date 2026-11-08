@@ -44,7 +44,7 @@ def main(argv=None):
             result = compare_reports(read_json(args.baseline_report), read_json(args.candidate_report),
                                      args.overall_tolerance, args.language_tolerance)
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-            Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0 if result["pass"] else 1
         checklist = read_json(args.checklist)
