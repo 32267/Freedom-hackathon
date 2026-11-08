@@ -26,7 +26,7 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
     if budget <= 0:
         raise ValueError("HYBRID_DEADLINE_SECONDS must be positive")
     vlm_spec = _provider("HYBRID_VLM_PROVIDER", "local")
-    lm_spec = _provider("HYBRID_LM_PROVIDER", "claude_cli")
+    lm_spec = _provider("HYBRID_LM_PROVIDER", "local_lm")
     if vlm_spec == lm_spec:
         raise ValueError("HYBRID_VLM_PROVIDER and HYBRID_LM_PROVIDER must be different")
 
