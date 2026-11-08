@@ -2,7 +2,7 @@
 from backend.llm import LLMOutputError, call_json
 
 LANGS = ("ru", "kz", "en")
-def translate_explanations(evaluation: dict, dialog: dict, checklist: dict, spec: str | None = None) -> dict:
+def translate_explanations(evaluation: dict, dialog: dict, checklist: dict, spec: str | None = None, timeout_override: float | None = None) -> dict:
     """Translate source-language explanations once after ensemble voting; scoring fields are immutable."""
     source_lang = {"RU": "ru", "KZ": "kz", "EN": "en"}.get(str(dialog.get("language", "RU")).upper(), "ru")
     results = evaluation["results"]
@@ -49,7 +49,10 @@ def translate_explanations(evaluation: dict, dialog: dict, checklist: dict, spec
         "Translate these finalized explanations. Do not add facts or qualifications.\n"
         + __import__("json").dumps({"criteria": payload}, ensure_ascii=False)
     )
-    response = call_json(system, user, schema, spec)
+    if timeout_override is None:
+        response = call_json(system, user, schema, spec)
+    else:
+        response = call_json(system, user, schema, spec, timeout_override=timeout_override)
     translated = response.data.get("criteria", {})
     for result in results:
         cid = result["criterion_id"]
