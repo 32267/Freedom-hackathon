@@ -8,7 +8,8 @@
   LOCAL_LLM_TIMEOUT=600                       # таймаут запроса в секундах
   LOCAL_LLM_REPETITION_PENALTY=1.1            # штраф за повторение (1.0 отключает)
   LOCAL_LLM_REPETITION_CONTEXT_SIZE=64        # окно токенов для штрафа за повторение
-  {env_prefix}_DEBUG_DIR=                        # каталог для opt-in локальной диагностики
+  LOCAL_LLM_DEBUG_DIR=                        # каталог для opt-in локальной диагностики
+  LOCAL_TEXT_LLM_URL / LOCAL_TEXT_LLM_MODEL    # отдельный текстовый LM endpoint
 
 Ответ запрашивается по JSON-схеме (response_format json_schema); сервер должен это поддерживать.
 Диагностические файлы могут содержать полный текст клиентского диалога. Они создаются
@@ -108,7 +109,8 @@ def call_json(system: str, user: str, schema: dict, model: str, effort: str, tim
     if not base:
         raise LLMError(f"{env_prefix}_URL не задан — локальная модель не подключена")
     name = os.getenv(f"{env_prefix}_MODEL", "").strip() or "cqa-judge"
-    headers = {"Authorization": f"Bearer {os.getenv(f'{env_prefix}_API_KEY', '').strip()}"} if os.getenv(f"{env_prefix}_API_KEY") else {}
+    api_key = os.getenv(f"{env_prefix}_API_KEY", "").strip()
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     try:
         max_tokens = int(os.getenv(f"{env_prefix}_MAX_TOKENS", "3072"))
