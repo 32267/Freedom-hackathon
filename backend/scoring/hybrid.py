@@ -139,7 +139,11 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
     if any(not str(item.get("_source_explanation") or "").strip() for item in ordered):
         raise LLMOutputError("Hybrid evaluation has criteria without a valid explanation; human review required")
     # Preserve the source-language-first contract and translate only after routing.
-    evaluation = translate_explanations(evaluation, dialog, checklist, lm_spec)
+    translation_timeout = budget - (time.monotonic() - started)
+    if translation_timeout <= 0:
+        raise LLMOutputError("Hybrid deadline expired before explanation translation; human review required")
+    evaluation = translate_explanations(evaluation, dialog, checklist, lm_spec,
+                                         timeout_override=translation_timeout)
     elapsed = round(time.monotonic() - started, 3)
     evaluation["hybrid"]["elapsed_seconds"] = elapsed
     evaluation["hybrid"]["deadline_exceeded"] = elapsed > budget
