@@ -47,7 +47,10 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criteri
         system = build_system(checklist, only=group)
         user = build_user(dialog, only=group)
         schema = build_schema(checklist, only=group)
-        res = call_json(system, user, schema, spec, timeout_override=timeout_override)
+        if timeout_override is None:
+            res = call_json(system, user, schema, spec)
+        else:
+            res = call_json(system, user, schema, spec, timeout_override=timeout_override)
         _usage(usage, res)
         raw.update(res.data.get("criteria", {}))
 
@@ -85,7 +88,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criteri
                     build_user(dialog, only=[cid], feedback=feedback),
                     build_schema(checklist, only=[cid]),
                     spec,
-                    timeout_override=retry_timeout,
+                    **({"timeout_override": retry_timeout} if retry_timeout is not None else {}),
                 )
             except LLMError:
                 continue
