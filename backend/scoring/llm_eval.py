@@ -1,6 +1,7 @@
 """Один «ответ» одного провайдера: отдельный вызов на каждый критерий → проверка → повтор проблемных критериев.
 Сравнение нескольких ответов и выбор провайдеров — в ensemble.py."""
 from datetime import datetime, timezone
+import time
 
 from backend.llm import LLMError, LLMOutputError, call_json
 
@@ -22,7 +23,7 @@ def _usage(acc: dict, res) -> None:
     acc["provider"] = res.provider
 
 
-def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criterion_ids: list[str] | None = None) -> dict:
+def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criterion_ids: list[str] | None = None, deadline_monotonic: float | None = None) -> dict:
     all_criteria = {c["id"]: c for c in checklist["criteria"]}
     selected = list(criterion_ids) if criterion_ids is not None else list(all_criteria)
     unknown = set(selected) - set(all_criteria)
@@ -36,10 +37,17 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criteri
     raw = {}
     for start in range(0, len(criterion_ids), CRITERIA_PER_REQUEST):
         group = criterion_ids[start:start + CRITERIA_PER_REQUEST]
+        timeout_override = None
+        if deadline_monotonic is not None:
+            remaining = deadline_monotonic - time.monotonic()
+            if remaining <= 0:
+                raise LLMError("Hybrid deadline expired before model request")
+            requests_left = max(1, (len(criterion_ids) - start + CRITERIA_PER_REQUEST - 1) // CRITERIA_PER_REQUEST)
+            timeout_override = max(0.5, remaining / requests_left)
         system = build_system(checklist, only=group)
         user = build_user(dialog, only=group)
         schema = build_schema(checklist, only=group)
-        res = call_json(system, user, schema, spec)
+        res = call_json(system, user, schema, spec, timeout_override=timeout_override)
         _usage(usage, res)
         raw.update(res.data.get("criteria", {}))
 
@@ -67,11 +75,17 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criteri
             )
             try:
                 retry_system = build_system(checklist, only=[cid])
+                retry_timeout = None
+                if deadline_monotonic is not None:
+                    retry_timeout = deadline_monotonic - time.monotonic()
+                    if retry_timeout <= 0:
+                        raise LLMError("Hybrid deadline expired before criterion retry")
                 res = call_json(
                     retry_system,
                     build_user(dialog, only=[cid], feedback=feedback),
                     build_schema(checklist, only=[cid]),
                     spec,
+                    timeout_override=retry_timeout,
                 )
             except LLMError:
                 continue
