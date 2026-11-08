@@ -17,6 +17,10 @@ def evaluate(dialog: dict, checklist: dict, providers: str | None = None, sample
     if os.getenv("SCORING_MODE", "llm") == "mock":
         from .mock import evaluate as _mock
         return _mock(dialog, checklist)
+    strategy = os.getenv("SCORING_STRATEGY", "").strip().lower()
+    if (providers or "").strip().lower() == "hybrid" or strategy == "hybrid":
+        from .hybrid import evaluate_hybrid
+        return evaluate_hybrid(dialog, checklist)
     from .ensemble import evaluate_ensemble
     return evaluate_ensemble(dialog, checklist, providers=providers, samples=samples)
 
