@@ -56,6 +56,8 @@ class SchemaTests(unittest.TestCase):
             validate_model_config({"models": [valid, dict(valid)]})
         with self.assertRaises(BenchmarkDataError):
             validate_model_config({"models": [{"id": "x"}]})
+        hybrid = {**valid, "id": "hybrid", "provider": "hybrid"}
+        self.assertIn("hybrid", validate_model_config({"models": [hybrid]}))
 
 
 class MetricTests(unittest.TestCase):
@@ -85,6 +87,9 @@ class MetricTests(unittest.TestCase):
         self.assertEqual(report["evidence"]["validity_rate"], 1.0)
         self.assertEqual(report["latency_seconds"]["p50"], 1.25)
         self.assertEqual(report["criterion_score_mae"]["scale"], 0.0)
+        self.assertIn("acceptance_gates", report)
+        self.assertIn("schema_validity_rate", report)
+        self.assertEqual(report["sla"]["rate"], 1.0)
 
 
 class RunnerTests(unittest.TestCase):
@@ -105,3 +110,16 @@ class RunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_report_summarizes_hybrid_routes(self):
+        prediction = {
+            "conversation_id": "c1", "status": "done", "latency_seconds": 20,
+            "evaluation": {"results": [], "hybrid": {
+                "routes": {"vlm": ["binary"], "lm_fallback": ["scale"], "needs_review": ["gross_errors"]},
+                "deadline_exceeded": False,
+            }}
+        }
+        report = build_report([GOLD], [prediction], CHECKLIST)
+        self.assertEqual(report["hybrid"]["vlm_accepted_criteria"], 1)
+        self.assertEqual(report["hybrid"]["lm_fallback_criteria"], 1)
+        self.assertEqual(report["hybrid"]["needs_review_criteria"], 1)
