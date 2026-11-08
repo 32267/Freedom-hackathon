@@ -214,7 +214,7 @@ def test_yes_evidence_from_client_alone_is_rejected():
 
 
 def test_evaluate_llm_can_return_one_criterion_for_hybrid_fallback(monkeypatch):
-    f, calls = fake([{"criteria": {"closing": GOOD["closing"]}}])
+    f, calls = fake([{"closing": GOOD["closing"]}])
     monkeypatch.setattr(llm_eval, "call_json", f)
     ev = llm_eval.evaluate_llm(CHAT, CL, spec="claude_cli", criterion_ids=["closing"])
     assert [item["criterion_id"] for item in ev["results"]] == ["closing"]
