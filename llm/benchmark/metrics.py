@@ -137,7 +137,7 @@ def build_report(gold_records, prediction_records, checklist):
     sla_rate = completed_under_120 / len(gold_records) if gold_records else None
     acceptance = {
         "overall_macro_f1_gte_0_90": overall_macro_f1 is not None and overall_macro_f1 >= 0.90,
-        "each_language_macro_f1_gte_0_85": bool(language_summary) and all(
+        "each_language_macro_f1_gte_0_85": {"RU", "KZ", "EN"}.issubset(language_summary) and all(
             value["criterion_macro_f1"] is not None and value["criterion_macro_f1"] >= 0.85
             for value in language_summary.values()),
         "critical_error_recall_gte_0_95": critical_recall is not None and critical_recall >= 0.95,
@@ -205,6 +205,7 @@ def compare_reports(baseline: dict, candidate: dict, overall_tolerance: float = 
         languages[lang] = {"baseline_macro_f1": b, "candidate_macro_f1": c, "delta": delta,
                            "pass": delta is not None and delta >= -language_tolerance}
     gates = {
+        "all_languages_present": {"RU", "KZ", "EN"}.issubset(set(base_lang) & set(cand_lang)),
         "overall_accuracy_loss_within_tolerance": overall_delta is not None and overall_delta >= -overall_tolerance,
         "each_language_loss_within_tolerance": bool(languages) and all(item["pass"] for item in languages.values()),
     }
