@@ -2,13 +2,9 @@
 from backend.llm import LLMOutputError, call_json
 
 LANGS = ("ru", "kz", "en")
-LANGUAGE_NAMES = {"ru": "Russian", "kz": "Kazakh", "en": "English"}
-
-
 def translate_explanations(evaluation: dict, dialog: dict, checklist: dict, spec: str | None = None) -> dict:
     """Translate source-language explanations once after ensemble voting; scoring fields are immutable."""
     source_lang = {"RU": "ru", "KZ": "kz", "EN": "en"}.get(str(dialog.get("language", "RU")).upper(), "ru")
-    by_id = {criterion["id"]: criterion for criterion in checklist["criteria"]}
     results = evaluation["results"]
     properties = {}
     payload = {}
