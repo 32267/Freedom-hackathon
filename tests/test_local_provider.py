@@ -181,3 +181,16 @@ def test_hybrid_timeout_override_reaches_local_http_request(monkeypatch):
     monkeypatch.setattr(httpx, "post", fake_post)
     call_json("s", "u", {"type": "object"}, "local", timeout_override=3.5)
     assert seen["timeout"] == 3.5
+
+
+def test_separate_local_lm_provider_uses_its_own_environment(monkeypatch):
+    monkeypatch.setenv("LOCAL_TEXT_LLM_URL", "http://localhost:8081/v1")
+    monkeypatch.setenv("LOCAL_TEXT_LLM_MODEL", "text-judge")
+    seen = {}
+    def fake_post(url, json, headers, timeout):
+        seen.update(url=url, model=json["model"])
+        return Resp(200, {"choices": [{"message": {"content": '{"criteria": {}}'}}], "usage": {}})
+    monkeypatch.setattr(httpx, "post", fake_post)
+    result = call_json("s", "u", {"type": "object"}, "local_lm")
+    assert seen == {"url": "http://localhost:8081/v1/chat/completions", "model": "text-judge"}
+    assert result.provider == "local_lm"
