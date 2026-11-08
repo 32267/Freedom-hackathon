@@ -1,4 +1,6 @@
 """Один ответ провайдера: пакет критериев → проверка → точечный повтор проблемных критериев."""
+import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from backend.llm import LLMError, LLMOutputError, call_json
@@ -29,11 +31,17 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
     usage = {"input": 0, "output": 0, "cache_read": 0, "cost": 0.0, "calls": 0, "model": None, "provider": spec}
 
     criterion_ids = list(by_id)
+    groups = [criterion_ids[i:i + CRITERIA_PER_REQUEST] for i in range(0, len(criterion_ids), CRITERIA_PER_REQUEST)]
+
+    def ask(group):
+        return call_json(build_system(checklist, only=group), build_user(dialog, only=group),
+                         build_schema(checklist, only=group), spec)
+
+    # пакеты критериев независимы → запрашиваем параллельно (общий лимит одновременных вызовов — в backend.llm)
+    with ThreadPoolExecutor(max_workers=max(1, min(len(groups), int(os.getenv("CRITERIA_PARALLEL", "8"))))) as pool:
+        responses = list(pool.map(ask, groups))
     raw = {}
-    for start in range(0, len(criterion_ids), CRITERIA_PER_REQUEST):
-        group = criterion_ids[start:start + CRITERIA_PER_REQUEST]
-        res = call_json(build_system(checklist, only=group), build_user(dialog, only=group),
-                        build_schema(checklist, only=group), spec)
+    for res in responses:
         _usage(usage, res)
         raw.update(res.data.get("criteria", {}))
 

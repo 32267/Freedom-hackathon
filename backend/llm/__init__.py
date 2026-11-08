@@ -12,6 +12,7 @@ LLM_PROVIDERS — уровни через «|», внутри уровня — �
   "claude_cli,claude_cli@~/.claude-team | codex_cli"  → сначала Claude-аккаунты, Codex — только если Claude не отвечает.
 """
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -54,7 +55,16 @@ def mark_dead(spec: str) -> None:
     _dead[spec] = time.monotonic() + DEAD_FOR_SEC
 
 
+_slots = threading.BoundedSemaphore(max(1, int(os.getenv("LLM_MAX_CONCURRENCY", "8"))))
+
+
 def call_json(system: str, user: str, schema: dict, spec: str | None = None) -> LLMResult:
+    """Не больше LLM_MAX_CONCURRENCY одновременных вызовов на весь сервер (CLI-провайдеры — отдельные процессы)."""
+    with _slots:
+        return _call_json(system, user, schema, spec)
+
+
+def _call_json(system: str, user: str, schema: dict, spec: str | None = None) -> LLMResult:
     spec = spec or provider_tiers()[0][0]
     kind, _, profile = spec.partition("@")
     model = os.getenv("LLM_MODEL", "").strip() or DEFAULT_CLAUDE_MODEL

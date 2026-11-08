@@ -14,11 +14,17 @@ def evaluate(dialog: dict, checklist: dict, providers: str | None = None, sample
     if os.getenv("SCORING_MODE", "llm") == "mock":
         from .mock import evaluate as _mock
         ev = _mock(dialog, checklist)
-    else:
-        from .ensemble import evaluate_ensemble
+        if include_summary:
+            ev["summary"] = summarize_dialog(dialog, providers)
+        return ev
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .ensemble import evaluate_ensemble
+    with ThreadPoolExecutor(max_workers=1) as pool:          # сводка (если нужна) — параллельно с оценкой
+        summary = pool.submit(summarize_dialog, dialog, providers) if include_summary else None
         ev = evaluate_ensemble(dialog, checklist, providers=providers, samples=samples)
-    if include_summary:
-        ev["summary"] = summarize_dialog(dialog, providers)
+        if summary is not None:
+            ev["summary"] = summary.result()
     return ev
 
 
