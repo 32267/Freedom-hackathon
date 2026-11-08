@@ -80,7 +80,7 @@ def test_missing_result_from_both_models_is_not_fabricated(monkeypatch):
     monkeypatch.setenv("HYBRID_VLM_PROVIDER", "local")
     monkeypatch.setenv("HYBRID_LM_PROVIDER", "claude_cli")
 
-    def fake(dialog, checklist, spec, criterion_ids=None):
+    def fake(dialog, checklist, spec, criterion_ids=None, deadline_monotonic=None):
         if spec == "local":
             raise LLMOutputError("bad VLM output")
         raise LLMOutputError("bad LM output")
