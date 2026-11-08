@@ -1,7 +1,7 @@
 {
   "conversation_id": "fixture-chat-ru",
   "checklist_id": "default",
-  "checklist_version": 7,
+  "checklist_version": 8,
   "status": "done",
   "model": "mock",
   "cost_usd": 0,
