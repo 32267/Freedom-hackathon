@@ -103,6 +103,7 @@ def build_report(gold_records, prediction_records, checklist):
                         evidence_valid += 1
             else:
                 invalid_criteria += 1
+                gold_evidence_count += len(gold_label.get("evidence", []))
         if gold_record.get("total_score") is not None:
             value = evaluation.get("total_score")
             if isinstance(value, (int, float)):
