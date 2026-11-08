@@ -211,3 +211,12 @@ def test_yes_evidence_from_client_alone_is_rejected():
     raw = good("yes", idx=1, quote="Не могу вывести деньги с брокерского счёта.")
     _, problems = check_criterion(raw, BY_ID["contact"], CHAT["transcript"])
     assert any("только репликами клиента/бота" in problem for problem in problems)
+
+
+def test_evaluate_llm_can_return_one_criterion_for_hybrid_fallback(monkeypatch):
+    f, calls = fake([{"criteria": {"closing": GOOD["closing"]}}])
+    monkeypatch.setattr(llm_eval, "call_json", f)
+    ev = llm_eval.evaluate_llm(CHAT, CL, spec="claude_cli", criterion_ids=["closing"])
+    assert [item["criterion_id"] for item in ev["results"]] == ["closing"]
+    assert "total_score" not in ev
+    assert len(calls) == 1
