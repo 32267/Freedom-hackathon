@@ -121,10 +121,6 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(DIALOG["transcript"][0]["text"], "Здравствуйте")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ComparisonTests(unittest.TestCase):
     def test_candidate_must_stay_within_overall_and_language_accuracy_loss(self):
         baseline = {"overall_criterion_macro_f1": 0.92, "language_summary": {
@@ -135,3 +131,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertTrue(result["pass"])
         candidate["language_summary"]["KZ"]["criterion_macro_f1"] = 0.86
         self.assertFalse(compare_reports(baseline, candidate)["pass"])
+
+
+if __name__ == "__main__":
+    unittest.main()
