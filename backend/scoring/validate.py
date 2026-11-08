@@ -80,6 +80,11 @@ def check_criterion(raw: dict, criterion: dict, transcript: list[dict], channel:
         problems.append(f"N/A для этого критерия допустим только в канале {', '.join(criterion['na_channels'])}, а это {channel}")
     if answer == "yes" and not evidence:
         problems.append("answer=yes без подтверждающей реплики")
+    if answer == "yes" and evidence:
+        supported_roles = {"operator", "system"}
+        if not any(0 <= item["msg_index"] < n and transcript[item["msg_index"]].get("speaker") in supported_roles
+                   for item in evidence):
+            problems.append("answer=yes подтверждён только репликами клиента/бота, а не действием оператора или системным событием")
     is_shortfall = answer == "no" or (ctype == "scale" and answer not in ("na", None)
                                       and str(answer) != str(criterion["scale"]["max"]))
     if ctype != "flag" and is_shortfall and not evidence and checked is None:
