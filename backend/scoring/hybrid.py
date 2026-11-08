@@ -96,19 +96,9 @@ def evaluate_hybrid(dialog: dict, checklist: dict, deadline_seconds: float | Non
             errors.append(f"{lm_spec}/{cid}: {exc}")
             item = results.get(cid)
             if item is None:
-                # Keep the external result complete without inventing a score.
-                criterion = criteria[cid]
-                item = {
-                    "criterion_id": cid, "answer": "na" if criterion.get("na_allowed") else "no",
-                    "raw_score": None, "max_score": None, "explanation": "",
-                    "explanations": {"ru": "", "kz": "", "en": ""},
-                    "_source_language": {"RU": "ru", "KZ": "kz", "EN": "en"}.get(dialog.get("language"), "ru"),
-                    "_source_explanation": "", "_source_na_reason": "",
-                    "evidence": [], "checked_range": None, "na_reason": None, "na_reasons": None,
-                    "flags": [], "insufficient": True, "source": "llm", "validated": False,
-                    "problems": [f"VLM and LM both failed: {exc}"],
-                }
-                results[cid] = item
+                raise LLMOutputError(
+                    f"No valid result for {cid}; VLM and LM fallback failed. Human review required."
+                )
             else:
                 item["needs_review"] = True
                 item["problems"] = list(item.get("problems") or []) + [f"LM fallback failed: {exc}"]
