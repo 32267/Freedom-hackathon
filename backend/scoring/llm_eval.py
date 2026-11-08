@@ -22,8 +22,13 @@ def _usage(acc: dict, res) -> None:
     acc["provider"] = res.provider
 
 
-def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict:
-    by_id = {c["id"]: c for c in checklist["criteria"]}
+def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None, criterion_ids: list[str] | None = None) -> dict:
+    all_criteria = {c["id"]: c for c in checklist["criteria"]}
+    selected = list(criterion_ids) if criterion_ids is not None else list(all_criteria)
+    unknown = set(selected) - set(all_criteria)
+    if unknown:
+        raise LLMOutputError(f"Неизвестные критерии: {sorted(unknown)}")
+    by_id = {cid: all_criteria[cid] for cid in selected}
     transcript = dialog["transcript"]
     usage = {"input": 0, "output": 0, "cache_read": 0, "cost": 0.0, "calls": 0, "model": None, "provider": spec}
 
@@ -120,6 +125,6 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
         "tokens": {"input": usage["input"], "output": usage["output"], "cache_read": usage["cache_read"],
                    "calls": usage["calls"]},
         "results": results,
-        **compute(results, checklist),
+        **(compute(results, checklist) if len(results) == len(checklist["criteria"]) else {}),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
