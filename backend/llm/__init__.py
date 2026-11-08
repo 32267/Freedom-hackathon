@@ -54,7 +54,7 @@ def mark_dead(spec: str) -> None:
     _dead[spec] = time.monotonic() + DEAD_FOR_SEC
 
 
-def call_json(system: str, user: str, schema: dict, spec: str | None = None) -> LLMResult:
+def call_json(system: str, user: str, schema: dict, spec: str | None = None, timeout_override: float | None = None) -> LLMResult:
     spec = spec or provider_tiers()[0][0]
     kind, _, profile = spec.partition("@")
     model = os.getenv("LLM_MODEL", "").strip() or DEFAULT_CLAUDE_MODEL
@@ -70,7 +70,7 @@ def call_json(system: str, user: str, schema: dict, spec: str | None = None) -> 
         res = impl(system=system, user=user, schema=schema, model=model, effort=effort)
     elif kind == "local":
         from .local_provider import call_json as impl
-        res = impl(system=system, user=user, schema=schema, model=model, effort=effort)
+        res = impl(system=system, user=user, schema=schema, model=model, effort=effort, timeout_override=timeout_override)
     else:
         raise LLMError(f"Неизвестный провайдер {spec!r} (есть: anthropic, claude_cli[@папка], codex_cli, local)")
     res.provider = spec
