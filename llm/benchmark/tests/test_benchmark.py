@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from llm.benchmark.metrics import build_report, classification_metrics
+from llm.benchmark.metrics import build_report, classification_metrics, compare_reports
 from llm.benchmark.runner import run_benchmark
 from llm.benchmark.schemas import BenchmarkDataError, validate_gold, validate_model_config
 
@@ -123,3 +123,15 @@ class RunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComparisonTests(unittest.TestCase):
+    def test_candidate_must_stay_within_overall_and_language_accuracy_loss(self):
+        baseline = {"overall_criterion_macro_f1": 0.92, "language_summary": {
+            "RU": {"criterion_macro_f1": 0.93}, "KZ": {"criterion_macro_f1": 0.90}}}
+        candidate = {"overall_criterion_macro_f1": 0.905, "language_summary": {
+            "RU": {"criterion_macro_f1": 0.91}, "KZ": {"criterion_macro_f1": 0.88}}}
+        result = compare_reports(baseline, candidate)
+        self.assertTrue(result["pass"])
+        candidate["language_summary"]["KZ"]["criterion_macro_f1"] = 0.86
+        self.assertFalse(compare_reports(baseline, candidate)["pass"])
