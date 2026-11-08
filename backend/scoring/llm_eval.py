@@ -43,7 +43,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
         if cid not in raw:
             problems[cid] = ["нет ответа по критерию"]
             continue
-        answers[cid], probs = check_criterion(raw[cid], c, transcript, dialog.get("channel"))
+        answers[cid], probs = check_criterion(raw[cid], c, transcript, dialog.get("channel"), dialog.get("language", "RU"))
         if probs:
             problems[cid] = probs
 
@@ -68,7 +68,7 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
             retry_raw = res.data.get("criteria", {})
             if cid not in retry_raw:
                 continue
-            fixed, probs = check_criterion(retry_raw[cid], by_id[cid], transcript, dialog.get("channel"))
+            fixed, probs = check_criterion(retry_raw[cid], by_id[cid], transcript, dialog.get("channel"), dialog.get("language", "RU"))
             if not probs or cid not in answers:
                 answers[cid] = fixed
             if probs:
@@ -90,6 +90,9 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
             "max_score": None if c["answer_type"] == "flag" else 1 if binary else c["scale"]["max"],
             "explanation": a["explanation"],
             "explanations": a["explanations"],
+            "_source_language": a["_source_language"],
+            "_source_explanation": a["_source_explanation"],
+            "_source_na_reason": a["_source_na_reason"],
             "evidence": a["evidence"],
             "checked_range": a["checked_range"],
             "na_reason": a["na_reason"],
