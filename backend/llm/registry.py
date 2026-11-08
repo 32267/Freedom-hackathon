@@ -55,8 +55,19 @@ def list_providers() -> dict:
         providers.append({"id": spec, "label": label + (f" · {profile}" if profile else ""), "kind": kind,
                           "billing": billing, "available": ok, "reason": reason or None,
                           "configured": spec in configured})
+    presets = []
+    for preset in PRESETS:
+        item = dict(preset)
+        if item["id"] == "hybrid":
+            vlm = os.getenv("HYBRID_VLM_PROVIDER", "local").strip() or "local"
+            lm = os.getenv("HYBRID_LM_PROVIDER", "claude_cli").strip() or "claude_cli"
+            vlm_ok, vlm_reason = _availability(vlm)
+            lm_ok, lm_reason = _availability(lm)
+            item["available"] = vlm_ok and lm_ok
+            item["reason"] = "; ".join(x for x in (vlm_reason, lm_reason) if x) or None
+        presets.append(item)
     return {
         "providers": providers,
-        "presets": PRESETS,
+        "presets": presets,
         "default": {"providers": os.getenv("LLM_PROVIDERS", "") or None, "samples": int(os.getenv("LLM_SAMPLES", "1") or 1)},
     }
