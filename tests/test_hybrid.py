@@ -46,7 +46,7 @@ def test_lm_fallback_only_rechecks_invalid_vlm_criteria(monkeypatch):
     monkeypatch.setenv("HYBRID_VLM_PROVIDER", "local")
     monkeypatch.setenv("HYBRID_LM_PROVIDER", "claude_cli")
     monkeypatch.setattr(hybrid, "evaluate_llm", fake)
-    monkeypatch.setattr(hybrid, "translate_explanations", lambda evaluation, *args: evaluation)
+    monkeypatch.setattr(hybrid, "translate_explanations", lambda evaluation, *args, **kwargs: evaluation)
     evaluation = hybrid.evaluate_hybrid(DIALOG, CHECKLIST)
 
     assert calls == [("local", None), ("claude_cli", ["closing"])]
