@@ -63,7 +63,7 @@ def list_providers() -> dict:
         item = dict(preset)
         if item["id"] == "hybrid":
             vlm = os.getenv("HYBRID_VLM_PROVIDER", "local").strip() or "local"
-            lm = os.getenv("HYBRID_LM_PROVIDER", "local_lm").strip() or "claude_cli"
+            lm = os.getenv("HYBRID_LM_PROVIDER", "local_lm").strip() or "local_lm"
             vlm_ok, vlm_reason = _availability(vlm)
             lm_ok, lm_reason = _availability(lm)
             item["available"] = vlm_ok and lm_ok
