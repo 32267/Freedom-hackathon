@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 
-from .metrics import build_report
+from .metrics import build_report, compare_reports
 from .runner import run_benchmark
 from .schemas import (BenchmarkDataError, dialog_records, read_json, read_jsonl,
                       validate_gold, validate_model_config)
@@ -28,13 +28,26 @@ def _parser():
     report.add_argument("--checklist", default="checklists/default.json")
     report.add_argument("--dialogs", help="optional dialog file for full gold evidence validation")
     report.add_argument("--out", required=True)
+    compare = sub.add_parser("compare", help="compare a candidate report with the LM-only baseline")
+    compare.add_argument("--baseline-report", required=True)
+    compare.add_argument("--candidate-report", required=True)
+    compare.add_argument("--out", required=True)
+    compare.add_argument("--overall-tolerance", type=float, default=0.02)
+    compare.add_argument("--language-tolerance", type=float, default=0.03)
     return parser
 
 
 def main(argv=None):
     args = _parser().parse_args(argv)
     try:
-        checklist = read_json(args.checklist) if args.command == "run" else read_json(args.checklist)
+        if args.command == "compare":
+            result = compare_reports(read_json(args.baseline_report), read_json(args.candidate_report),
+                                     args.overall_tolerance, args.language_tolerance)
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["pass"] else 1
+        checklist = read_json(args.checklist)
         gold = read_jsonl(args.gold)
         if args.command == "run":
             models = validate_model_config(read_json(args.models_config))
