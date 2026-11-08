@@ -4,6 +4,8 @@ import unicodedata
 
 
 def _norm(s: str) -> str:
+    if not isinstance(s, str):
+        return ""
     s = unicodedata.normalize("NFKC", s).casefold()
     s = re.sub(r"[«»\"“”„'\x60’‘]", "", s)
     s = s.replace("…", "").replace("...", "")
