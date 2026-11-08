@@ -370,10 +370,10 @@ def _providers_arg(p) -> str | None:
     return p or None
 
 
-def _evaluate_one(cid: str, checklist_id: str, providers=None, samples=None) -> dict:
+def _evaluate_one(cid: str, checklist_id: str, providers=None, samples=None, include_summary: bool = False) -> dict:
     d = db.get_dialog(cid) or _err(404, f"Диалог {cid} не найден")
     cl = db.get_checklist(checklist_id) or _err(404, f"Чек-лист {checklist_id} не найден")
-    ev = evaluate(d, cl, providers=_providers_arg(providers), samples=samples)
+    ev = evaluate(d, cl, providers=_providers_arg(providers), samples=samples, include_summary=include_summary)
     return db.save_evaluation(ev)
 
 
@@ -381,7 +381,8 @@ def _evaluate_one(cid: str, checklist_id: str, providers=None, samples=None) -> 
 def create_evaluation(body: dict = Body(...)):
     try:
         return _evaluate_one(body.get("conversation_id") or _err(422, "Нужен conversation_id"),
-                             body.get("checklist_id") or "default", body.get("providers"), body.get("samples"))
+                             body.get("checklist_id") or "default", body.get("providers"), body.get("samples"),
+                             include_summary=bool(body.get("include_summary", False)))
     except LLMError as e:
         _err(503, f"Модель недоступна: {e}")
     except ScoringError as e:
@@ -400,7 +401,8 @@ _jobs_lock = threading.Lock()
 def _run_job(job: dict, ids: list[str], body: dict) -> None:
     def one(cid):
         try:
-            _evaluate_one(cid, body.get("checklist_id") or "default", body.get("providers"), body.get("samples"))
+            _evaluate_one(cid, body.get("checklist_id") or "default", body.get("providers"), body.get("samples"),
+                          include_summary=bool(body.get("include_summary", False)))
             key = "done"
         except Exception as e:  # noqa: BLE001
             key = "failed"
