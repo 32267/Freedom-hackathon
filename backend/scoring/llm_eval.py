@@ -53,7 +53,13 @@ def evaluate_llm(dialog: dict, checklist: dict, spec: str | None = None) -> dict
         # Keep retries criterion-scoped too: a combined retry can recreate the
         # oversized response that per-criterion initial calls are designed to avoid.
         for cid in list(problems):
-            feedback = f"- {cid}: {'; '.join(problems[cid])}"
+            feedback = (
+                f"- {cid}: {'; '.join(problems[cid])}\\n"
+                "Начни оценку этого критерия заново по всему транскрипту; не повторяй прежний answer автоматически. "
+                "Сначала проверь na_rule и keep_if. Если условие N/A выполнено, верни answer=na и непустые explanation/na_reason. "
+                "Если выбираешь yes, приложи точную подтверждающую цитату и объяснение на языке диалога. "
+                "Не используй сведения клиента или бота как доказательство действия оператора."
+            )
             try:
                 retry_system = build_system(checklist, only=[cid])
                 res = call_json(
