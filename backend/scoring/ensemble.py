@@ -106,7 +106,10 @@ def evaluate_ensemble(dialog: dict, checklist: dict, providers: str | None = Non
     if not answers:
         raise LLMError("Ни один провайдер не ответил: " + "; ".join(errors))
     ev = merge(answers, checklist)
-    ev = translate_explanations(ev, dialog, checklist, answers[0].get("provider"))
+    # Production criterion evaluations carry canonical source-language text; keep
+    # lightweight ensemble unit fixtures (which bypass llm_eval) translation-free.
+    if all("_source_explanation" in result for result in ev["results"]):
+        ev = translate_explanations(ev, dialog, checklist, answers[0].get("provider"))
     if errors:
         ev["provider_errors"] = errors
     return ev
