@@ -15,6 +15,7 @@ from backend.llm import LLMError, LLMOutputError, is_alive, mark_dead, provider_
 
 from .llm_eval import evaluate_llm
 from .math import compute
+from .translation import translate_explanations
 
 
 def _samples_wanted(override: int | None = None) -> int:
@@ -105,6 +106,7 @@ def evaluate_ensemble(dialog: dict, checklist: dict, providers: str | None = Non
     if not answers:
         raise LLMError("Ни один провайдер не ответил: " + "; ".join(errors))
     ev = merge(answers, checklist)
+    ev = translate_explanations(ev, dialog, checklist, answers[0].get("provider"))
     if errors:
         ev["provider_errors"] = errors
     return ev
